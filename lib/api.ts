@@ -66,7 +66,7 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
         body: JSON.stringify(credentials),
       }
     )
-    // console.log('[v0] API response status111:', await response.json())
+    //console.log('[v0] API response status111:', await response.json())
     // console.log('[v0] API response status:', response.status)
 
     if (!response.ok) {
