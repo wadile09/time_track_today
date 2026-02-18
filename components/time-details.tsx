@@ -11,6 +11,7 @@ import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculat
 import { useToast } from '@/hooks/use-toast'
 import { LiveClock } from '@/components/ui/LiveClock' // ← import here
 import type { ClockInDetail } from '@/lib/api'
+import { parseUTCTime } from '@/lib/timeCalculation'
 
 export function TimeDetails() {
   const router = useRouter()
@@ -19,19 +20,21 @@ export function TimeDetails() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<any>(null)
   const [calculation, setCalculation] = useState<any>(null)
+  const [timeRemaining, setTimeRemaining] = useState<string>('--:--:--')
 
   useEffect(() => {
     const initializeData = async () => {
       const sessionStr = localStorage.getItem('authSession')
       if (!sessionStr) {
+        // Only redirect to login if no session exists
         router.push('/')
         return
       }
 
-      const authSession: AuthSession = JSON.parse(sessionStr)
-      setSession(authSession)
-
       try {
+        const authSession: AuthSession = JSON.parse(sessionStr)
+        setSession(authSession)
+
         const today = new Date()
         const clockDate = today.toISOString().split('T')[0]
 
@@ -72,6 +75,74 @@ export function TimeDetails() {
   const handleLogout = () => {
     localStorage.removeItem('authSession')
     router.push('/')
+  }
+
+  // Update countdown every second
+  useEffect(() => {
+    if (!calculation?.firstPunchIn || !data?.clockInDetails || calculation?.status !== 'incomplete') {
+      setTimeRemaining('--:--:--')
+      return
+    }
+
+    const updateCountdown = () => {
+      // Find the first IN timestamp
+      const firstInEvent = data.clockInDetails.find((d: ClockInDetail) => d.inOutType === 'IN')
+      if (!firstInEvent) {
+        setTimeRemaining('--:--:--')
+        return
+      }
+
+      const firstInDate = parseUTCTime(firstInEvent.clockTime)
+      const requiredMs = (calculation.requiredMinutes + calculation.totalBreakMinutes) * 60 * 1000
+      const estimatedCompletion = new Date(firstInDate.getTime() + requiredMs)
+
+      // Get current time
+      const now = new Date()
+      const diff = estimatedCompletion.getTime() - now.getTime()
+
+      if (diff <= 0) {
+        setTimeRemaining('00:00:00')
+        return
+      }
+
+      // Convert to hours, minutes, seconds
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+      setTimeRemaining(
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      )
+    }
+
+    updateCountdown()
+    const interval = setInterval(updateCountdown, 1000)
+
+    return () => clearInterval(interval)
+  }, [calculation, data])
+
+  // Calculate estimated completion time
+  const calculateCompletionTime = () => {
+    if (!calculation?.firstPunchIn || !data?.clockInDetails) return null
+
+    // Find the first IN timestamp
+    const firstInEvent = data.clockInDetails.find((d: ClockInDetail) => d.inOutType === 'IN')
+    if (!firstInEvent) return null
+
+    const firstInDate = parseUTCTime(firstInEvent.clockTime)
+
+    // Required time in milliseconds (8h 15m + breaks taken so far)
+    const requiredMs = (calculation.requiredMinutes + calculation.totalBreakMinutes) * 60 * 1000
+
+    // Calculate estimated completion time
+    const estimatedCompletion = new Date(firstInDate.getTime() + requiredMs)
+
+    return estimatedCompletion.toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).toUpperCase()
   }
 
   if (loading) {
@@ -121,141 +192,228 @@ export function TimeDetails() {
     })
   }
 
+  const progressPercentage = Math.min(100, (calculation.totalWorkMinutes / calculation.requiredMinutes) * 100)
+  const isComplete = calculation.status !== 'incomplete'
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white">
-      {/* Luxury skeleton watch background */}
-      <div className="absolute inset-0 z-0">
-        <div
-          className="w-full h-full bg-cover bg-center opacity-30"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1541783245831-57d6fb0926d3?auto=format&fit=crop&q=80')`, // skeleton / transparent luxury watch
-            filter: 'brightness(0.7) contrast(1.1) grayscale(0.3)'
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
-      </div>
-
-      {/* Live clock overlay */}
-      <div className="relative z-10 flex flex-col items-center pt-16 pb-8">
-        <div className="mb-3 text-2xl font-light tracking-widest opacity-80">Current Time</div>
-        <LiveClock />
-      </div>
-
-      <div className="relative z-10 mx-auto max-w-5xl px-6 pb-16">
-        {/* Header */}
-        <div className="mb-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-teal-300 bg-clip-text text-transparent">
-              Attendance Dashboard
-            </h1>
-            <p className="mt-2 text-xl text-gray-300">
-              {session.employeeName} • {session.email}
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      {/* Header */}
+      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-center">
+            <div>
+              {/* <h1 className="text-xl font-semibold text-gray-900">Time Tracker</h1> */}
+              <p className="text-sm text-gray-600">{session.employeeName}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="items-center">
+                <p className="text-xs text-gray-500 text-center">Current Time</p>
+                <LiveClock />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="border-gray-300"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleLogout}
+        </div>
+      </header>
 
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-          </Button>
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
+        {/* Hero Section - Completion Time */}
+        {!isComplete ? (
+          <Card className="mb-8 border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden">
+            <CardContent className="pt-12 pb-12 text-center relative">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
+              <div className="relative z-10">
+                <p className="text-sm uppercase tracking-wider text-blue-100 mb-2">Your work will complete at</p>
+                <p className="text-6xl md:text-7xl font-light mb-4 tracking-tight">
+                  {calculateCompletionTime() || '--:--'}
+                </p>
+                <p className="text-2xl md:text-3xl font-light text-blue-50 mb-1">
+                  {timeRemaining}
+                </p>
+                <p className="text-sm text-blue-100">
+                  remaining
+                </p>
+                {/* <p className="text-lg text-blue-50">
+                  {calculation.differenceFormatted.replace('-', '')} remaining
+                </p>
+                <div className="mt-6 max-w-md mx-auto">
+                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-white rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-blue-100 mt-2">{Math.round(progressPercentage)}% complete</p>
+                </div> */}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mb-8 border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+            <CardContent className="pt-12 pb-12 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <p className="text-3xl md:text-4xl font-light mb-2">Work Complete!</p>
+              <p className="text-lg text-emerald-50">
+                You've completed {calculation.totalWorkFormatted}
+              </p>
+              {calculation.status === 'overtime' && (
+                <p className="text-sm text-emerald-100 mt-2">
+                  Overtime: +{calculation.differenceFormatted}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Stats */}
+        <div className="space-y-6">
+          {/* Shift Info */}
+          <Card className="border border-gray-200 shadow-sm">
+            <CardContent className="pt-6 pb-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Clock className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Shift</p>
+                  <p className="text-sm font-semibold text-gray-900">{data.shiftName}</p>
+                  <p className="text-xs text-gray-600 mt-0.5">{data.policyName}</p>
+                </div>
+              </div>
+              <div className="pt-4 border-t border-gray-100">
+                <p className="text-xs font-medium text-gray-500 mb-2">Date</p>
+                <p className="text-sm text-gray-900">{formatDate(data.attendanceDate)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Summary Card */}
+          {/* <Card className="border border-gray-200 shadow-sm">
+              <CardContent className="pt-6 pb-6">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">Summary</p>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Total Work</span>
+                    <span className="text-sm font-semibold text-gray-900">{calculation.totalWorkFormatted}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Required</span>
+                    <span className="text-sm font-semibold text-gray-900">{calculation.requiredFormatted}</span>
+                  </div>
+                  <div className="pt-3 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Difference</span>
+                      <span className={`text-sm font-semibold ${calculation.differenceMinutes >= 0 ? 'text-emerald-600' : 'text-orange-600'
+                        }`}>
+                        {calculation.differenceFormatted}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card> */}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 mt-5">
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6 pb-6">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Started</p>
+              <p className="text-2xl font-semibold text-gray-900">{calculation.firstPunchIn || '--:--'}</p>
+            </CardContent>
+          </Card>
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6 pb-6">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Worked</p>
+              <p className="text-2xl font-semibold text-blue-600">{calculation.totalWorkFormatted}</p>
+            </CardContent>
+          </Card>
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6 pb-6">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Breaks</p>
+              <p className="text-2xl font-semibold text-orange-600">{calculation.totalBreakFormatted}</p>
+            </CardContent>
+          </Card>
+          <Card className="border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6 pb-6">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Required</p>
+              <p className="text-2xl font-semibold text-gray-900">{calculation.requiredFormatted}</p>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Summary Card */}
-        <Card className="mb-10 border-0 bg-black/50 backdrop-blur-xl shadow-2xl border-white/10">
-          <CardHeader className="bg-gradient-to-r from-gray-900 to-black border-b border-white/10">
-            <CardTitle className="flex items-center gap-3 text-2xl text-green-400">
-              <Clock className="h-6 w-6 text-blue-400" />
-              {formatDate(data.attendanceDate)}
-            </CardTitle>
-            <CardDescription className="text-gray-300 mt-2">
-              {data.policyName} • Shift: {data.shiftName}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="pt-8 grid gap-8 md:grid-cols-5 text-center">
-            <div>
-              <p className="text-sm text-gray-400">Punch In</p>
-              <p className="text-3xl font-bold mt-1 text-green-400">{calculation.firstPunchIn || '--:--'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Total Work</p>
-              <p className="text-3xl font-bold text-blue-400 mt-1">{calculation.totalWorkFormatted}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Total Break</p>
-              <p className="text-3xl font-bold text-orange-500 mt-1">{calculation.totalBreakFormatted}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Required</p>
-              <p className="text-3xl font-bold text-teal-300 mt-1">{calculation.requiredFormatted}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Incomplete Status</p>
-              {/* <Badge className={`mt-2 text-base px-5 py-2 ${getStatusColor(calculation.status)} border`}>
-                
-              </Badge> */}
-              <p className="text-3xl font-bold text-teal-300 mt-1 text-red-500">{calculation.status === 'complete' ? 'Complete' :
-                calculation.status === 'overtime' ? `Overtime ${calculation.differenceFormatted}` :
-                  ` ${calculation.differenceFormatted}`}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Sessions Card */}
-        <Card className="border-0 bg-black/50 backdrop-blur-xl shadow-2xl border-white/10">
-          <CardHeader>
-            <CardTitle className="text-2xl">Today's Sessions</CardTitle>
-            <CardDescription className="text-gray-300">
-              {calculation.sessions.length} session{calculation.sessions.length !== 1 ? 's' : ''}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            {calculation.sessions.length > 0 ? (
-              calculation.sessions.map((s: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                >
-                  <div>
-                    <p className="font-semibold text-lg">Session {i + 1}</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      IN: <span className="text-white">{s.inTime}</span> • OUT: <span className="text-white">{s.outTime}</span>
-                    </p>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Timeline - Takes 2 columns */}
+          <div className="lg:col-span-2">
+            {/* <Card className="border border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+                <CardTitle className="text-base font-semibold text-gray-900">Activity Timeline</CardTitle>
+                <CardDescription className="text-sm text-gray-600">
+                  {calculation.sessions.length} {calculation.sessions.length === 1 ? 'entry' : 'entries'} today
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 pb-6">
+                {calculation.sessions.length > 0 ? (
+                  <div className="space-y-4">
+                    {calculation.sessions.map((session: any, i: number) => {
+                      const isWalkIn = i % 2 === 0
+                      return (
+                        <div key={i} className="flex items-start gap-4 group">
+                          <div className="flex-shrink-0 mt-1">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isWalkIn ? 'bg-emerald-100' : 'bg-orange-100'
+                              }`}>
+                              <div className={`w-2 h-2 rounded-full ${isWalkIn ? 'bg-emerald-600' : 'bg-orange-600'
+                                }`} />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0  pb-4 border-b border-gray-100 group-last:border-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                {isWalkIn ? 'Walk In' : 'Walk Out'}
+                              </p>
+                              <p className="text-sm font-medium text-gray-700">
+                                {isWalkIn ? session.inTime : session.outTime}
+                              </p>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-gray-500">
+                                Session {Math.floor(i / 2) + 1}
+                              </p>
+                              <p className="text-xs text-blue-600 font-medium">
+                                {minutesToHMString(session.durationMinutes)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-400">{minutesToHMString(s.durationMinutes)}</p>
-                    <p className="text-xs text-gray-500">{Math.round(s.durationMinutes)} min</p>
+                ) : (
+                  <div className="text-center py-12">
+                    <Clock className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500">No activity recorded today</p>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-10 text-center text-gray-400 bg-white/5 rounded-xl border border-white/10">
-                No clock in/out records today
-              </div>
-            )}
+                )}
+              </CardContent>
+            </Card> */}
+          </div>
 
-            {calculation.sessions.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-white/10 space-y-3 text-lg">
-                <div className="flex justify-between font-semibold">
-                  <span>Total Work Time</span>
-                  <span className="text-blue-400">{calculation.totalWorkFormatted}</span>
-                </div>
-                <div className="flex justify-between text-gray-300">
-                  <span>Required Time</span>
-                  <span>{calculation.requiredFormatted}</span>
-                </div>
-                <div className={`flex justify-between font-medium ${calculation.differenceMinutes >= 0 ? 'text-green-400' : 'text-orange-400'}`}>
-                  <span>Difference</span>
-                  <span>{calculation.differenceFormatted}</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          {/* Right Column - Details */}
+
+        </div>
+      </main>
     </div>
   )
 }
