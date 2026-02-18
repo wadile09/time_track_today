@@ -45,9 +45,26 @@ export function calculateDurationMinutes(start: Date, end: Date): number {
   return (end.getTime() - start.getTime()) / (1000 * 60)
 }
 
+/**
+ * Clamp a date to 9:30 AM IST if it's before 9:30 AM IST on the same day.
+ * Returns a new Date clamped to 9:30 AM IST (04:00 UTC).
+ */
+function clampTo930AM(date: Date): Date {
+  // 9:30 AM IST = 04:00 UTC
+  const clamped = new Date(date)
+  const utcHours = clamped.getUTCHours()
+  const utcMinutes = clamped.getUTCMinutes()
+
+  // 9:30 AM IST = 04:00 AM UTC
+  if (utcHours < 4 || (utcHours === 4 && utcMinutes < 0)) {
+    clamped.setUTCHours(4, 0, 0, 0)
+  }
+  return clamped
+}
+
 export function calculateTimeFromSessions(
   clockInDetails: Array<{ inOutType: 'IN' | 'OUT'; clockTime: string }>
-): TimeCalculationResult {
+): TimeCalculationResult & { firstPunchInDate: Date | null } {
   // Required working hours: 8 hours 15 minutes = 495 minutes
   const REQUIRED_MINUTES = 8 * 60 + 15
 
@@ -56,9 +73,16 @@ export function calculateTimeFromSessions(
     parseUTCTime(a.clockTime).getTime() - parseUTCTime(b.clockTime).getTime()
   )
 
-  // Find first punch in
+  // Find first punch in and clamp to 9:30 AM IST if before
   const firstInEvent = sortedDetails.find(d => d.inOutType === 'IN')
-  const firstPunchIn = firstInEvent ? formatToIST(parseUTCTime(firstInEvent.clockTime)) : null
+  let firstPunchInDate: Date | null = null
+  let firstPunchIn: string | null = null
+
+  if (firstInEvent) {
+    const rawDate = parseUTCTime(firstInEvent.clockTime)
+    firstPunchInDate = clampTo930AM(rawDate)
+    firstPunchIn = formatToIST(firstPunchInDate)
+  }
 
   const sessions: TimeSession[] = []
   let totalWorkMinutes = 0
@@ -128,6 +152,7 @@ export function calculateTimeFromSessions(
     differenceMinutes,
     differenceFormatted: minutesToHMString(differenceMinutes),
     firstPunchIn,
+    firstPunchInDate,
     status,
   }
 }
