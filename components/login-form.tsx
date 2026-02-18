@@ -94,10 +94,7 @@ export function LoginForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="mb-4 rounded-md bg-blue-50 p-3 text-sm text-blue-700 border border-blue-200">
-            <p className="font-semibold mb-2">For Testing:</p>
-            <p className="text-xs">Open your browser console (F12) to see detailed login logs</p>
-          </div>
+         
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-sm font-medium text-foreground">
