@@ -129,6 +129,8 @@ export function TimeDetails() {
   const [mounted, setMounted] = useState(false)
   const [showNikalPopup, setShowNikalPopup] = useState(false)
   const nikalShownRef = useRef(false)
+  const [showGetReadyPopup, setShowGetReadyPopup] = useState(false)
+  const getReadyShownRef = useRef(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -195,6 +197,18 @@ export function TimeDetails() {
       } else {
         setLiveWorkMinutes(calculation.totalWorkMinutes)
         setLiveBreakMinutes(elapsedMinutes - calculation.totalWorkMinutes)
+      }
+
+      // Trigger Get Ready popup once at 90%
+      if (!getReadyShownRef.current && calculation.requiredMinutes > 0) {
+        const workDone = calculation.isCurrentlyIn
+          ? (elapsedMinutes - calculation.totalBreakMinutes)
+          : calculation.totalWorkMinutes
+        const pct = (workDone / calculation.requiredMinutes) * 100
+        if (pct >= 90 && pct < 100) {
+          getReadyShownRef.current = true
+          setShowGetReadyPopup(true)
+        }
       }
 
       // Trigger NIKAL popup once when time is complete
@@ -286,6 +300,46 @@ export function TimeDetails() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* ─── Get Ready Popup (90%) ─── */}
+      {showGetReadyPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.80)' }}>
+          <div className="relative flex flex-col items-center gap-6 text-center p-10 max-w-sm">
+            {/* Glow rings */}
+            <div className="absolute inset-0 rounded-full bg-amber-500/5 blur-[120px] pointer-events-none" />
+            <div className="absolute inset-0 rounded-full bg-amber-500/10 blur-[60px] scale-75 pointer-events-none" />
+
+            {/* Bag icon */}
+            <div className="relative flex items-center justify-center w-24 h-24 rounded-full border border-amber-500/20 bg-amber-500/10">
+              <svg className="w-12 h-12 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2h12a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 2v4m6-4v4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h8" />
+              </svg>
+            </div>
+
+            {/* Main text */}
+            <div className="space-y-3">
+              <p className="text-[10px] uppercase tracking-[0.5em] text-white/25 font-light">90% Done</p>
+              <h2
+                className="text-4xl font-black tracking-tight text-transparent bg-clip-text leading-tight"
+                style={{ backgroundImage: 'linear-gradient(135deg, #fbbf24, #fde68a, #fff)' }}
+              >
+                Get Ready and<br />Pack your bag
+              </h2>
+            </div>
+
+            {/* Dismiss button */}
+            <button
+              onClick={() => setShowGetReadyPopup(false)}
+              className="mt-2 px-10 py-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-400/80
+                hover:bg-amber-500/20 hover:text-amber-300 transition-all duration-500 text-xs tracking-[0.3em] uppercase font-light"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ─── NIKAL Popup ─── */}
       {showNikalPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.85)' }}>
