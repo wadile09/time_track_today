@@ -124,6 +124,8 @@ export function TimeDetails() {
   const [data, setData] = useState<any>(null)
   const [calculation, setCalculation] = useState<any>(null)
   const [timeRemaining, setTimeRemaining] = useState<string>('--:--:--')
+  const [liveWorkMinutes, setLiveWorkMinutes] = useState<number>(0)
+  const [liveBreakMinutes, setLiveBreakMinutes] = useState<number>(0)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -156,6 +158,8 @@ export function TimeDetails() {
 
         const result = calculateTimeFromSessions(response.data.clockInDetails)
         setCalculation(result)
+        setLiveWorkMinutes(result.totalWorkMinutes)
+        setLiveBreakMinutes(result.totalBreakMinutes)
       } catch (error) {
         toast({
           title: 'Error',
@@ -174,32 +178,46 @@ export function TimeDetails() {
     router.push('/')
   }
 
-  // Countdown timer
+  // Live updates for countdown, work time, and breaks
   useEffect(() => {
-    if (!calculation?.firstPunchInDate || calculation?.status !== 'incomplete') {
-      setTimeRemaining('--:--:--')
-      return
-    }
+    if (!calculation?.firstPunchInDate) return
 
-    const updateCountdown = () => {
-      const requiredMs = (calculation.requiredMinutes + calculation.totalBreakMinutes) * 60 * 1000
-      const estimatedCompletion = new Date(calculation.firstPunchInDate.getTime() + requiredMs)
+    const updateLiveValues = () => {
       const now = new Date()
-      const diff = estimatedCompletion.getTime() - now.getTime()
+      const firstPunch = new Date(calculation.firstPunchInDate)
+      const elapsedMinutes = Math.max(0, (now.getTime() - firstPunch.getTime()) / (1000 * 60))
 
-      if (diff <= 0) { setTimeRemaining('00:00:00'); return }
+      if (calculation.isCurrentlyIn) {
+        setLiveWorkMinutes(elapsedMinutes - calculation.totalBreakMinutes)
+        setLiveBreakMinutes(calculation.totalBreakMinutes)
+      } else {
+        setLiveWorkMinutes(calculation.totalWorkMinutes)
+        setLiveBreakMinutes(elapsedMinutes - calculation.totalWorkMinutes)
+      }
 
-      const hours = Math.floor(diff / (1000 * 60 * 60))
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+      // Countdown logic
+      if (calculation.status === 'incomplete') {
+        const requiredMs = (calculation.requiredMinutes + calculation.totalBreakMinutes) * 60 * 1000
+        const estimatedCompletion = new Date(firstPunch.getTime() + requiredMs)
+        const diff = estimatedCompletion.getTime() - now.getTime()
 
-      setTimeRemaining(
-        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-      )
+        if (diff <= 0) {
+          setTimeRemaining('00:00:00')
+        } else {
+          const hours = Math.floor(diff / (1000 * 60 * 60))
+          const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+          const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+          setTimeRemaining(
+            `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+          )
+        }
+      } else {
+        setTimeRemaining('--:--:--')
+      }
     }
 
-    updateCountdown()
-    const interval = setInterval(updateCountdown, 1000)
+    updateLiveValues()
+    const interval = setInterval(updateLiveValues, 1000)
     return () => clearInterval(interval)
   }, [calculation])
 
@@ -245,8 +263,8 @@ export function TimeDetails() {
     )
   }
 
-  const progressPercentage = Math.min(100, (calculation.totalWorkMinutes / calculation.requiredMinutes) * 100)
-  const isComplete = calculation.status !== 'incomplete'
+  const progressPercentage = Math.min(100, (liveWorkMinutes / calculation.requiredMinutes) * 100)
+  const isComplete = liveWorkMinutes >= calculation.requiredMinutes
 
   const formatDate = (dateString: string) =>
     new Date(dateString).toLocaleDateString('en-US', {
@@ -342,9 +360,9 @@ export function TimeDetails() {
                 </div>
                 <p className="text-2xl font-extralight text-emerald-400/70">Day Complete</p>
                 <p className="text-sm text-white/30 font-light">
-                  {calculation.totalWorkFormatted} worked
-                  {calculation.status === 'overtime' && (
-                    <span className="text-emerald-400/50"> · +{calculation.differenceFormatted} overtime</span>
+                  {minutesToHMString(liveWorkMinutes)} worked
+                  {liveWorkMinutes > calculation.requiredMinutes && (
+                    <span className="text-emerald-400/50"> · +{minutesToHMString(liveWorkMinutes - calculation.requiredMinutes)} overtime</span>
                   )}
                 </p>
               </div>
@@ -355,8 +373,8 @@ export function TimeDetails() {
         {/* ─── Stats Grid ─── */}
         <div className="grid grid-cols-2 gap-3">
           <StatCard label="Started" value={calculation.firstPunchIn || '--:--'} />
-          <StatCard label="Worked" value={calculation.totalWorkFormatted} accent="text-blue-400/70" />
-          <StatCard label="Breaks" value={calculation.totalBreakFormatted} accent="text-orange-400/70" />
+          <StatCard label="Worked" value={minutesToHMString(liveWorkMinutes)} accent="text-blue-400/70" />
+          <StatCard label="Breaks" value={minutesToHMString(liveBreakMinutes)} accent="text-orange-400/70" />
           <StatCard label="Required" value={calculation.requiredFormatted} />
         </div>
 
