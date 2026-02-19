@@ -10,9 +10,11 @@ export interface LoginResponse {
   message: string
   data: {
     token: string
-    employeeCode: string
-    employeeName: string
-    email: string
+    userModel: {
+      employeeCode: string
+      employeeName: string
+      email: string
+    }
   }
 }
 
