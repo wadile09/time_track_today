@@ -362,7 +362,7 @@ export function TimeDetails() {
                 className="text-8xl font-black tracking-tighter text-transparent bg-clip-text"
                 style={{ backgroundImage: 'linear-gradient(135deg, #34d399, #6ee7b7, #fff)' }}
               >
-                Chalo Nikalo
+                A Aavjo!!! Kale Maliye 
               </h1>
               <p className="text-white/30 text-sm font-light tracking-wide">
                 You&apos;ve served your time. Your freedom awaits.
