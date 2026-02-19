@@ -202,6 +202,11 @@ export function LoginForm() {
 
   useEffect(() => {
     setMounted(true)
+    // Auto-redirect if already logged in
+    const existing = localStorage.getItem('authSession')
+    if (existing) {
+      router.push('/time-details')
+    }
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
