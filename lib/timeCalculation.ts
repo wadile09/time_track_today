@@ -15,6 +15,8 @@ export interface TimeCalculationResult {
   differenceMinutes: number
   differenceFormatted: string
   firstPunchIn: string | null
+  isCurrentlyIn: boolean
+  lastPunchTime: Date | null
   status: 'complete' | 'incomplete' | 'overtime'
 }
 
@@ -133,6 +135,11 @@ export function calculateTimeFromSessions(
   // Calculate difference from required
   const differenceMinutes = totalWorkMinutes - REQUIRED_MINUTES
 
+  // Last event status
+  const lastEvent = sortedDetails[sortedDetails.length - 1]
+  const isCurrentlyIn = lastEvent?.inOutType === 'IN'
+  const lastPunchTime = lastEvent ? parseUTCTime(lastEvent.clockTime) : null
+
   // Determine status
   let status: 'complete' | 'incomplete' | 'overtime'
   if (totalWorkMinutes >= REQUIRED_MINUTES) {
@@ -153,6 +160,8 @@ export function calculateTimeFromSessions(
     differenceFormatted: minutesToHMString(differenceMinutes),
     firstPunchIn,
     firstPunchInDate,
+    isCurrentlyIn,
+    lastPunchTime,
     status,
   }
 }
