@@ -127,6 +127,8 @@ export function TimeDetails() {
   const [liveWorkMinutes, setLiveWorkMinutes] = useState<number>(0)
   const [liveBreakMinutes, setLiveBreakMinutes] = useState<number>(0)
   const [mounted, setMounted] = useState(false)
+  const [showNikalPopup, setShowNikalPopup] = useState(false)
+  const nikalShownRef = useRef(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -193,6 +195,17 @@ export function TimeDetails() {
       } else {
         setLiveWorkMinutes(calculation.totalWorkMinutes)
         setLiveBreakMinutes(elapsedMinutes - calculation.totalWorkMinutes)
+      }
+
+      // Trigger NIKAL popup once when time is complete
+      if (!nikalShownRef.current && calculation.requiredMinutes > 0) {
+        const workDone = calculation.isCurrentlyIn
+          ? (elapsedMinutes - calculation.totalBreakMinutes)
+          : calculation.totalWorkMinutes
+        if (workDone >= calculation.requiredMinutes) {
+          nikalShownRef.current = true
+          setShowNikalPopup(true)
+        }
       }
 
       // Countdown logic
@@ -273,6 +286,47 @@ export function TimeDetails() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* ─── NIKAL Popup ─── */}
+      {showNikalPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.85)' }}>
+          <div className="relative flex flex-col items-center gap-8 text-center p-10 max-w-sm">
+            {/* Glow rings */}
+            <div className="absolute inset-0 rounded-full bg-emerald-500/5 blur-[120px] pointer-events-none" />
+            <div className="absolute inset-0 rounded-full bg-emerald-500/10 blur-[60px] scale-75 pointer-events-none" />
+
+            {/* Tick icon */}
+            <div className="relative flex items-center justify-center w-24 h-24 rounded-full border border-emerald-500/20 bg-emerald-500/10">
+              <svg className="w-12 h-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            {/* Main text */}
+            <div className="space-y-3">
+              <p className="text-[10px] uppercase tracking-[0.5em] text-white/25 font-light">Time Complete</p>
+              <h1
+                className="text-8xl font-black tracking-tighter text-transparent bg-clip-text"
+                style={{ backgroundImage: 'linear-gradient(135deg, #34d399, #6ee7b7, #fff)' }}
+              >
+                Chalo Nikalo
+              </h1>
+              <p className="text-white/30 text-sm font-light tracking-wide">
+                You&apos;ve served your time. Your freedom awaits.
+              </p>
+            </div>
+
+            {/* Dismiss button */}
+            <button
+              onClick={() => setShowNikalPopup(false)}
+              className="mt-2 px-10 py-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400/80
+                hover:bg-emerald-500/20 hover:text-emerald-300 transition-all duration-500 text-xs tracking-[0.3em] uppercase font-light"
+            >
+              Acknowledged
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Subtle ambient glow */}
       <div className="fixed inset-0 pointer-events-none" style={{
         background: 'radial-gradient(ellipse at 50% 0%, rgba(20, 20, 30, 1) 0%, rgba(0, 0, 0, 1) 60%)',
@@ -382,6 +436,16 @@ export function TimeDetails() {
 
         {/* ─── Sessions Timeline ─── */}
 
+
+        {/* ─── DEV: Test NIKAL Popup ─── */}
+        {/* <div className="flex justify-center">
+          <button
+            onClick={() => { nikalShownRef.current = false; setShowNikalPopup(true) }}
+            className="px-4 py-2 rounded-xl border border-white/10 text-white/20 text-[10px] tracking-widest uppercase hover:border-white/20 hover:text-white/40 transition-all"
+          >
+            🧪 Preview NIKAL Popup
+          </button>
+        </div> */}
 
         {/* Footer spacer */}
         <div className="h-4" />
