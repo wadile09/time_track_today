@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Loader2, LogOut, Clock } from 'lucide-react'
-import { getClockInDetails, AuthSession } from '@/lib/api'
+import { getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail } from '@/lib/api'
 import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculation'
 import { useToast } from '@/hooks/use-toast'
 
@@ -131,6 +131,7 @@ export function TimeDetails() {
   const nikalShownRef = useRef(false)
   const [showGetReadyPopup, setShowGetReadyPopup] = useState(false)
   const getReadyShownRef = useRef(false)
+  const [upcomingHolidays, setUpcomingHolidays] = useState<HolidayDetail[]>([])
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -164,6 +165,26 @@ export function TimeDetails() {
         setCalculation(result)
         setLiveWorkMinutes(result.totalWorkMinutes)
         setLiveBreakMinutes(result.totalBreakMinutes)
+
+        // Fetch upcoming events (holidays) – non-blocking
+        try {
+          const eventsRes = await getUpcomingEvents(authSession.token)
+          if (eventsRes.isSuccess && eventsRes.data?.holidayDetails) {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
+            const filtered = eventsRes.data.holidayDetails.filter((h) => {
+              // Parse the day string e.g. "Wed, 04 Mar 2026"
+              const holidayDate = new Date(h.day)
+              holidayDate.setHours(0, 0, 0, 0)
+              const diffDays = Math.round((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              // Show only 0, 1, or 2 days ahead (not past holidays)
+              return diffDays >= 0 && diffDays <= 2
+            })
+            setUpcomingHolidays(filtered)
+          }
+        } catch {
+          // Silently ignore holiday fetch errors
+        }
       } catch (error) {
         toast({
           title: 'Error',
@@ -199,13 +220,13 @@ export function TimeDetails() {
         setLiveBreakMinutes(elapsedMinutes - calculation.totalWorkMinutes)
       }
 
-      // Trigger Get Ready popup once at 90%
+      // Trigger Get Ready popup once between 90%–95%
       if (!getReadyShownRef.current && calculation.requiredMinutes > 0) {
         const workDone = calculation.isCurrentlyIn
           ? (elapsedMinutes - calculation.totalBreakMinutes)
           : calculation.totalWorkMinutes
         const pct = (workDone / calculation.requiredMinutes) * 100
-        if (pct >= 90 && pct < 100) {
+        if (pct >= 90 && pct <= 95) {
           getReadyShownRef.current = true
           setShowGetReadyPopup(true)
         }
@@ -362,7 +383,7 @@ export function TimeDetails() {
                 className="text-8xl font-black tracking-tighter text-transparent bg-clip-text"
                 style={{ backgroundImage: 'linear-gradient(135deg, #34d399, #6ee7b7, #fff)' }}
               >
-                A Aavjo!!! Kale Maliye 
+                A Aavjo!!! Kale Maliye
               </h1>
               <p className="text-white/30 text-sm font-light tracking-wide">
                 You&apos;ve served your time. Your freedom awaits.
@@ -486,20 +507,44 @@ export function TimeDetails() {
           <StatCard label="Required" value={calculation.requiredFormatted} />
         </div>
 
-
-
-        {/* ─── Sessions Timeline ─── */}
-
-
-        {/* ─── DEV: Test NIKAL Popup ─── */}
-        {/* <div className="flex justify-center">
-          <button
-            onClick={() => { nikalShownRef.current = false; setShowNikalPopup(true) }}
-            className="px-4 py-2 rounded-xl border border-white/10 text-white/20 text-[10px] tracking-widest uppercase hover:border-white/20 hover:text-white/40 transition-all"
-          >
-            🧪 Preview NIKAL Popup
-          </button>
-        </div> */}
+        {/* ─── Upcoming Holidays Banner ─── */}
+        {upcomingHolidays.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[9px] uppercase tracking-[0.25em] text-white/20">Upcoming Holiday{upcomingHolidays.length > 1 ? 's' : ''}</p>
+            {upcomingHolidays.map((h, i) => {
+              const holidayDate = new Date(h.day)
+              holidayDate.setHours(0, 0, 0, 0)
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              const diffDays = Math.round((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+              const label = diffDays === 0 ? 'Today' : diffDays === 1 ? 'Tomorrow' : 'In 2 days'
+              return (
+                <div
+                  key={i}
+                  className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/[0.06] backdrop-blur-sm px-5 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-amber-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-white/75 font-light">{h.holidayName}</p>
+                      <p className="text-[10px] text-white/30 mt-0.5">{h.day}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-medium uppercase tracking-widest px-2.5 py-1 rounded-lg ${diffDays === 0
+                    ? 'bg-amber-500/20 text-amber-300'
+                    : 'bg-amber-500/10 text-amber-500/70'
+                    }`}>
+                    {label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* Footer spacer */}
         <div className="h-4" />
