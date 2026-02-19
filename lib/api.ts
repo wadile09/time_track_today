@@ -128,3 +128,50 @@ export async function getClockInDetails(
     throw error
   }
 }
+
+export interface HolidayDetail {
+  day: string
+  month: string
+  holidayName: string
+  isOptional: boolean
+  stateName: string[]
+  status: string | null
+}
+
+export interface UpcomingEventsResponse {
+  isSuccess: boolean
+  statusCode: number
+  message: string
+  data: {
+    holidayDetails: HolidayDetail[]
+    leaveDetails: any[]
+  }
+}
+
+export async function getUpcomingEvents(token: string): Promise<UpcomingEventsResponse> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/leaveservice/dashboard/upcoming/events`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    )
+
+    if (!response.ok) {
+      const errorData = await response.text()
+      console.error('[v0] Upcoming events API error:', errorData)
+      throw new Error(`Failed to fetch upcoming events with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log('[v0] Upcoming events received:', data)
+    return data
+  } catch (error) {
+    console.error('[v0] Upcoming events API error:', error)
+    throw error
+  }
+}
