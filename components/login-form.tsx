@@ -264,133 +264,154 @@ export function LoginForm() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black">
-      {/* Subtle animated gradient background */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at 50% 30%, rgba(20, 20, 25, 1) 0%, rgba(0, 0, 0, 1) 70%)',
-        }}
-      />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black font-sans">
+      {/* Premium Mesh Gradient Background */}
+      <div className="absolute inset-0 z-0 bg-black overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-purple-600/5 blur-[100px]" />
+
+        {/* Grain texture overlay */}
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}></div>
+      </div>
 
       {/* Floating particles effect */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {mounted && [...Array(6)].map((_, i) => (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        {mounted && [...Array(12)].map((_, i) => (
           <div
             key={i}
             className="absolute rounded-full"
             style={{
-              width: `${2 + i * 0.5}px`,
-              height: `${2 + i * 0.5}px`,
-              left: `${15 + i * 14}%`,
-              top: `${20 + (i % 3) * 25}%`,
-              background: 'rgba(255, 255, 255, 0.03)',
-              boxShadow: '0 0 20px rgba(255, 255, 255, 0.02)',
-              animation: `float-${i} ${8 + i * 2}s infinite ease-in-out`,
+              width: `${1 + i * 0.2}px`,
+              height: `${1 + i * 0.2}px`,
+              left: `${(i * 15) % 100}%`,
+              top: `${(i * 25) % 100}%`,
+              background: 'rgba(255, 255, 255, 0.05)',
+              boxShadow: '0 0 15px rgba(255, 255, 255, 0.05)',
+              animation: `float-${i % 8} ${15 + i * 2}s infinite ease-in-out`,
             }}
           />
         ))}
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center gap-8 p-4 w-full max-w-md">
-        {/* Analog Clock */}
-        <div className="relative">
-          {mounted && <AnalogClock size={240} />}
+      <div className="relative z-10 flex flex-col items-center gap-12 p-6 w-full max-w-md">
+        {/* Analog Clock Container with Depth */}
+        <div className="relative group transition-all duration-1000 hover:scale-105">
+          <div className="absolute inset-0 rounded-full bg-white/5 blur-3xl group-hover:bg-blue-500/5 transition-colors duration-1000" />
+          {mounted && <AnalogClock size={260} />}
         </div>
 
-        {/* Digital Time */}
-        {mounted && <DigitalTime />}
+        {/* Digital Time & Card Section */}
+        <div className="w-full space-y-8 flex flex-col items-center">
+          {mounted && <DigitalTime />}
 
-        {/* Login Card */}
-        <div className="w-full backdrop-blur-xl rounded-2xl border border-white/[0.06] bg-white/[0.03] p-8 shadow-2xl shadow-black/50">
-          {/* Card Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-xl font-light tracking-[0.15em] text-white/90 uppercase">
-              Time Tracker
-            </h1>
-            <div className="mt-2 mx-auto w-8 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-            <p className="mt-3 text-[11px] tracking-[0.2em] text-white/25 uppercase">
-              Employee Attendance System
-            </p>
+          {/* Login Card */}
+          <div className="w-full backdrop-blur-[40px] rounded-[2.5rem] border border-white/[0.08] bg-white/[0.01] p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.7)] relative overflow-hidden group">
+            {/* Glossy Edge Glow */}
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+
+            {/* Card Header */}
+            <div className="text-center mb-10">
+              <h1 className="text-2xl font-extralight tracking-[0.25em] text-white/95 uppercase mb-1.5 leading-none">
+                Chronos
+              </h1>
+              <p className="text-[10px] tracking-[0.4em] text-white/20 uppercase font-light">
+                Enterprise Node 0x99
+              </p>
+            </div>
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="username" className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-light ml-2">
+                  Identity
+                </Label>
+                <div className="relative group/input">
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={loading}
+                    className="h-14 bg-white/[0.02] border-white/[0.06] text-white/90 placeholder:text-white/15 
+                      focus:border-white/20 focus:ring-0 focus:bg-white/[0.04] rounded-2xl
+                      transition-all duration-500 text-sm font-light tracking-widest px-6 w-full outline-none ring-0 appearance-none"
+                    required
+                  />
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent group-focus-within/input:w-[80%] transition-all duration-1000" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-light ml-2">
+                  Access Key
+                </Label>
+                <div className="relative group/input">
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    className="h-14 bg-white/[0.02] border-white/[0.06] text-white/90 placeholder:text-white/15 
+                      focus:border-white/20 focus:ring-0 focus:bg-white/[0.04] rounded-2xl
+                      transition-all duration-500 text-sm font-light tracking-widest px-6 w-full outline-none ring-0"
+                    required
+                  />
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent group-focus-within/input:w-[80%] transition-all duration-1000" />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-14 mt-4 bg-white text-black hover:bg-neutral-200 font-medium 
+                  tracking-[0.25em] uppercase text-[10px] rounded-2xl
+                  transition-all duration-700 disabled:opacity-20 shadow-[0_0_30px_-5px_rgba(255,255,255,0.1)] 
+                  active:scale-[0.98] active:duration-300"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-3">
+                    <svg className="animate-spin h-4 w-4 text-black" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Decrypting
+                  </span>
+                ) : (
+                  'Authorize Access'
+                )}
+              </Button>
+            </form>
           </div>
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="username" className="text-[11px] uppercase tracking-[0.15em] text-white/30 font-light">
-                Username
-              </Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
-                className="h-11 bg-white/[0.04] border-white/[0.06] text-white/90 placeholder:text-white/15 
-                  focus:border-white/20 focus:ring-0 focus:bg-white/[0.06] rounded-xl
-                  transition-all duration-300 text-sm font-light tracking-wide"
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-[11px] uppercase tracking-[0.15em] text-white/30 font-light">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                className="h-11 bg-white/[0.04] border-white/[0.06] text-white/90 placeholder:text-white/15 
-                  focus:border-white/20 focus:ring-0 focus:bg-white/[0.06] rounded-xl
-                  transition-all duration-300 text-sm font-light tracking-wide"
-                required
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 mt-2 bg-white/10 hover:bg-white/[0.15] text-white/80 font-light 
-                tracking-[0.15em] uppercase text-xs border border-white/[0.08] rounded-xl
-                transition-all duration-300 hover:border-white/[0.15] hover:text-white
-                disabled:opacity-30 backdrop-blur-sm"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Authenticating
-                </span>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
         </div>
 
         {/* Footer */}
-        <p className="text-[10px] text-white/10 tracking-[0.2em] uppercase">
-          Secure Connection
-        </p>
+        <div className="mt-8 flex flex-col items-center gap-3 opacity-20 hover:opacity-50 transition-all duration-1000 cursor-default group">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-px bg-gradient-to-r from-transparent to-white/40 group-hover:w-16 transition-all duration-1000" />
+            <p className="text-[8px] tracking-[0.5em] uppercase font-thin">
+              Secure Terminal Protocol v2.4
+            </p>
+            <div className="w-12 h-px bg-gradient-to-l from-transparent to-white/40 group-hover:w-16 transition-all duration-1000" />
+          </div>
+        </div>
       </div>
 
-      {/* Floating animation keyframes */}
       <style dangerouslySetInnerHTML={{
         __html: `
-        @keyframes float-0 { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-30px) scale(1.5); } }
-        @keyframes float-1 { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(25px) scale(1.3); } }
-        @keyframes float-2 { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-20px) scale(1.4); } }
-        @keyframes float-3 { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(35px) scale(1.2); } }
-        @keyframes float-4 { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-25px) scale(1.5); } }
-        @keyframes float-5 { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(20px) scale(1.3); } }
+        @keyframes float-0 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(25px, -40px); } }
+        @keyframes float-1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-30px, 30px); } }
+        @keyframes float-2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, -35px); } }
+        @keyframes float-3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-25px, 45px); } }
+        @keyframes float-4 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(35px, -30px); } }
+        @keyframes float-5 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-45px, 20px); } }
+        @keyframes float-6 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(20px, 35px); } }
+        @keyframes float-7 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-35px, -25px); } }
       `}} />
     </div>
   )
