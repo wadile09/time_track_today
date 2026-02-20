@@ -14,6 +14,10 @@ export interface LoginResponse {
       employeeCode: string
       employeeName: string
       email: string
+      firstName: string
+      lastName: string
+      mobileNumber: string
+
     }
   }
 }
@@ -50,6 +54,9 @@ export interface AuthSession {
   employeeCode: string
   employeeName: string
   email: string
+  firstName: string
+  lastName: string
+  mobileNumber: string
 }
 
 const API_BASE_URL = 'https://app.mewurk.com/api/v1'
