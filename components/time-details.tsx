@@ -146,8 +146,11 @@ export function TimeDetails() {
       const freshSession: AuthSession = {
         token: loginResp.data.token,
         employeeCode: loginResp.data.userModel.employeeCode,
-        employeeName: loginResp.data.userModel.employeeName,
+        employeeName: `${loginResp.data.userModel.firstName} ${loginResp.data.userModel.lastName}`.trim(),
         email: loginResp.data.userModel.email,
+        firstName: loginResp.data.userModel.firstName,
+        lastName: loginResp.data.userModel.lastName,
+        mobileNumber: loginResp.data.userModel.mobileNumber,
       }
       localStorage.setItem('authSession', JSON.stringify(freshSession))
       return freshSession
@@ -473,7 +476,23 @@ export function TimeDetails() {
             {mounted && <MiniAnalogClock size={40} />}
             <div>
               <p className="text-[10px] uppercase tracking-[0.15em] text-white/25">Welcome</p>
-              <p className="text-sm text-white/70 font-light">{session.employeeName}</p>
+              <p className="text-sm text-white/80 font-light">
+                {session.firstName && session.lastName
+                  ? `${session.firstName} ${session.lastName}`
+                  : session.employeeName}
+              </p>
+              <div className="flex items-center gap-3 mt-0.5">
+                {session.mobileNumber && (
+                  <p className="text-[10px] text-white/30 font-light tracking-wide">
+                    📱 {session.mobileNumber}
+                  </p>
+                )}
+                {session.email && (
+                  <p className="text-[10px] text-white/30 font-light tracking-wide">
+                    ✉ {session.email}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
