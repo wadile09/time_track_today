@@ -357,16 +357,16 @@ export function TimeDetails() {
       }
 
       // Trigger Get Ready popup once between 90%–95%
-      if (!getReadyShownRef.current && calculation.requiredMinutes > 0) {
-        const workDone = calculation.isCurrentlyIn
-          ? (elapsedMinutes - calculation.totalBreakMinutes)
-          : calculation.totalWorkMinutes
-        const pct = (workDone / calculation.requiredMinutes) * 100
-        if (pct >= 90 && pct <= 95) {
-          getReadyShownRef.current = true
-          setShowGetReadyPopup(true)
-        }
-      }
+            // if (!getReadyShownRef.current && calculation.requiredMinutes > 0) {
+      //   const workDone = calculation.isCurrentlyIn
+      //     ? (elapsedMinutes - calculation.totalBreakMinutes)
+      //     : calculation.totalWorkMinutes
+      //   const pct = (workDone / calculation.requiredMinutes) * 100
+      //   if (pct >= 90 && pct <= 95) {
+      //     getReadyShownRef.current = true
+      //     setShowGetReadyPopup(true)
+      //   }
+      // }
 
       // Trigger NIKAL popup once when time is complete
       if (!nikalShownRef.current && calculation.requiredMinutes > 0) {
