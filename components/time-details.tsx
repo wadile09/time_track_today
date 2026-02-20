@@ -88,7 +88,7 @@ function LiveDigitalClock() {
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-5 transition-all duration-300 hover:bg-white/[0.05] hover:border-white/[0.1]">
-      <p className="text-[10px] uppercase tracking-[0.2em] text-white/25 mb-2 font-light">{label}</p>
+      <p style={{ fontWeight: 'bold' }} className="text-[15px] uppercase tracking-[0.2em] text-white/25 mb-2 font-light">{label}</p>
       <p style={{ fontWeight: 'bold' }} className={`text-2xl font-light tracking-wide ${accent || 'text-white/80'}`}>{value}</p>
     </div>
   )
@@ -96,7 +96,7 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
 
 /* ─── Progress Ring ─── */
 function ProgressRing({ percentage, size = 140 }: { percentage: number; size?: number }) {
-  const stroke = 16
+  const stroke = 6
   const r = (size - stroke) / 2
   const circ = 2 * Math.PI * r
   const offset = circ - (Math.min(percentage, 100) / 100) * circ
@@ -473,7 +473,7 @@ export function TimeDetails() {
       <header className="relative z-10 border-b border-white/[0.05]">
         <div className="mx-auto max-w-2xl px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {mounted && <MiniAnalogClock size={80} />}
+            {mounted && <MiniAnalogClock size={100} />}
             <div>
               <p className="text-[10px] uppercase tracking-[0.15em] text-white/25">Welcome</p>
               <p style={{ fontWeight: 'bold' }} className="text-lg font-bold text-white/80 font-light">
@@ -481,18 +481,6 @@ export function TimeDetails() {
                   ? `${session.firstName} ${session.lastName}`
                   : session.employeeName}
               </p>
-              <div className="flex items-center gap-3 mt-0.5">
-                {session.mobileNumber && (
-                  <p className="text-[15px] text-white/60 font-light tracking-wide">
-                    📱 {session.mobileNumber}
-                  </p>
-                )}
-                {session.email && (
-                  <p className="text-[15px] text-white/60 font-light tracking-wide">
-                    ✉ {session.email}
-                  </p>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -546,7 +534,7 @@ export function TimeDetails() {
             {!isComplete ? (
               <div className="space-y-3">
                 <div>
-                  <p style={{ fontWeight: 'bold' }} className="text-lg font-extralight text-white/85 tracking-tight">Completes at</p>
+                  <p className="text-lg font-extralight uppercase tracking-[0.25em] text-white/85 tracking-tight">Completes at</p>
                   <p style={{ fontWeight: 'bold' }} className="text-4xl font-extralight text-white/85 tracking-tight">
                     {calculateCompletionTime() || '--:--'}
                   </p>
