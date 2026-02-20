@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Loader2, LogOut, Clock } from 'lucide-react'
-import { getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail } from '@/lib/api'
+import { login, getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail } from '@/lib/api'
 import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculation'
 import { useToast } from '@/hooks/use-toast'
 
@@ -135,19 +135,77 @@ export function TimeDetails() {
 
   useEffect(() => { setMounted(true) }, [])
 
+  // Silent re-login using stored credentials — returns a fresh AuthSession or null
+  const silentReLogin = async (): Promise<AuthSession | null> => {
+    const credsStr = localStorage.getItem('authCredentials')
+    if (!credsStr) return null
+    try {
+      const creds = JSON.parse(credsStr)
+      const loginResp = await login(creds)
+      if (!loginResp.isSuccess) return null
+      const freshSession: AuthSession = {
+        token: loginResp.data.token,
+        employeeCode: loginResp.data.userModel.employeeCode,
+        employeeName: loginResp.data.userModel.employeeName,
+        email: loginResp.data.userModel.email,
+      }
+      localStorage.setItem('authSession', JSON.stringify(freshSession))
+      return freshSession
+    } catch {
+      return null
+    }
+  }
+
   useEffect(() => {
     const initializeData = async () => {
+      let authSession: AuthSession | null = null
+
+      // 1. Try to read stored session
       const sessionStr = localStorage.getItem('authSession')
-      if (!sessionStr) { router.push('/'); return }
+      if (sessionStr) {
+        try { authSession = JSON.parse(sessionStr) } catch { /* fall through */ }
+      }
+
+      // 2. If no valid session, try silent re-login before giving up
+      if (!authSession) {
+        authSession = await silentReLogin()
+        if (!authSession) { router.push('/'); return }
+      }
 
       try {
-        const authSession: AuthSession = JSON.parse(sessionStr)
         setSession(authSession)
 
         const today = new Date()
         const clockDate = today.toISOString().split('T')[0]
 
-        const response = await getClockInDetails(authSession.token, authSession.employeeCode, clockDate)
+        let response = await getClockInDetails(authSession.token, authSession.employeeCode, clockDate)
+
+        // 3. If the stored token has expired, silently refresh it once
+        if (!response.isSuccess) {
+          const msg = (response.message || '').toLowerCase()
+          const isExpired =
+            response.statusCode === 401 ||
+            msg.includes('unauthorized') ||
+            msg.includes('token') ||
+            msg.includes('expired') ||
+            msg.includes('invalid')
+
+          if (isExpired) {
+            const fresh = await silentReLogin()
+            if (fresh) {
+              authSession = fresh
+              setSession(fresh)
+              response = await getClockInDetails(fresh.token, fresh.employeeCode, clockDate)
+            } else {
+              // Credentials are also invalid — must log in manually
+              localStorage.removeItem('authSession')
+              localStorage.removeItem('authCredentials')
+              toast({ title: 'Session Expired', description: 'Please log in again.', variant: 'destructive' })
+              router.push('/')
+              return
+            }
+          }
+        }
 
         if (!response.isSuccess) {
           toast({ title: 'Error', description: response.message, variant: 'destructive' })
@@ -200,6 +258,7 @@ export function TimeDetails() {
 
   const handleLogout = () => {
     localStorage.removeItem('authSession')
+    localStorage.removeItem('authCredentials')
     router.push('/')
   }
 
