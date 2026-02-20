@@ -229,7 +229,7 @@ export function LoginForm() {
       const encoded = Buffer.from(raw).toString("base64")
 
       const response = await login({ username: encoded, password, otp })
-
+      console.log("response111", response)
       if (!response.isSuccess) {
         toast({
           title: 'Login Failed',
@@ -243,8 +243,11 @@ export function LoginForm() {
       const sessionData = {
         token: response.data.token,
         employeeCode: response.data.userModel.employeeCode,
-        employeeName: response.data.userModel.employeeName,
+        employeeName: `${response.data.userModel.firstName} ${response.data.userModel.lastName}`.trim(),
         email: response.data.userModel.email,
+        firstName: response.data.userModel.firstName,
+        lastName: response.data.userModel.lastName,
+        mobileNumber: response.data.userModel.mobileNumber,
       }
 
       // Save session token
