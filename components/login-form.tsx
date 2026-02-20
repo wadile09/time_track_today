@@ -247,7 +247,10 @@ export function LoginForm() {
         email: response.data.userModel.email,
       }
 
+      // Save session token
       localStorage.setItem('authSession', JSON.stringify(sessionData))
+      // Save credentials for silent re-login when token expires
+      localStorage.setItem('authCredentials', JSON.stringify({ username: encoded, password, otp }))
 
       toast({
         title: 'Success',
