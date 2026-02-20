@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/use-toast'
 /* ─── Mini Analog Clock (header) ─── */
 function MiniAnalogClock({ size = 44 }: { size?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -21,18 +20,15 @@ function MiniAnalogClock({ size = 44 }: { size?: number }) {
     canvas.width = size * dpr
     canvas.height = size * dpr
     ctx.scale(dpr, dpr)
-
     function draw() {
       if (!ctx) return
       const now = new Date()
       const cx = size / 2, cy = size / 2, r = size / 2 - 3
       ctx.clearRect(0, 0, size, size)
-
       // face
       ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2)
       ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fill()
       ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1; ctx.stroke()
-
       // ticks
       for (let i = 0; i < 12; i++) {
         const a = (i * Math.PI * 2) / 12 - Math.PI / 2
@@ -41,7 +37,19 @@ function MiniAnalogClock({ size = 44 }: { size?: number }) {
         ctx.lineTo(cx + (r - 1) * Math.cos(a), cy + (r - 1) * Math.sin(a))
         ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1; ctx.stroke()
       }
-
+      // numbers
+      const fontSize = Math.max(size * 0.13, 7)
+      ctx.font = `${fontSize}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = 'rgba(255,255,255,0.55)'
+      const numR = r - 10  // radius for number placement
+      for (let i = 1; i <= 12; i++) {
+        const a = (i * Math.PI * 2) / 12 - Math.PI / 2
+        const nx = cx + numR * Math.cos(a)
+        const ny = cy + numR * Math.sin(a)
+        ctx.fillText(String(i), nx, ny)
+      }
       const h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds()
       // hour
       const ha = ((h + m / 60) * Math.PI * 2) / 12 - Math.PI / 2
@@ -58,13 +66,11 @@ function MiniAnalogClock({ size = 44 }: { size?: number }) {
       // center
       ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fillStyle = 'rgba(239,68,68,0.8)'; ctx.fill()
     }
-
     let id: number
     function tick() { draw(); id = requestAnimationFrame(tick) }
     tick()
     return () => cancelAnimationFrame(id)
   }, [size])
-
   return <canvas ref={canvasRef} style={{ width: size, height: size }} />
 }
 
@@ -101,16 +107,84 @@ function ProgressRing({ percentage, size = 140 }: { percentage: number; size?: n
   const circ = 2 * Math.PI * r
   const offset = circ - (Math.min(percentage, 100) / 100) * circ
 
+  const [animatedOffset, setAnimatedOffset] = useState(circ) // start empty
+  const [glowing, setGlowing] = useState(false)
+
+  useEffect(() => {
+    // Slight delay so the animation is visible on mount
+    const t1 = setTimeout(() => setAnimatedOffset(offset), 100)
+    const t2 = setTimeout(() => setGlowing(true), 200)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [offset])
+
+  const isComplete = percentage >= 100
+  const color = isComplete ? 'rgba(52,211,153,0.7)' : 'rgba(239,68,68,0.55)'
+  const glowColor = isComplete ? 'rgba(52,211,153,0.35)' : 'rgba(239,68,68,0.25)'
+
   return (
-    <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={stroke} />
+    <svg width={size} height={size} className="-rotate-90" style={{ overflow: 'visible' }}>
+      <defs>
+        <filter id="ring-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* Track */}
       <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={percentage >= 100 ? 'rgba(52,211,153,0.6)' : 'rgba(239,68,68,0.5)'}
-        strokeWidth={stroke} strokeLinecap="round"
-        strokeDasharray={circ} strokeDashoffset={offset}
-        className="transition-all duration-1000 ease-out"
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        stroke="rgba(255,255,255,0.04)"
+        strokeWidth={stroke}
       />
+
+      {/* Glow layer (blurred duplicate) */}
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        stroke={glowColor}
+        strokeWidth={stroke + 4}
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        strokeDashoffset={animatedOffset}
+        style={{
+          transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          filter: 'blur(4px)',
+          opacity: glowing ? 1 : 0,
+        }}
+      />
+
+      {/* Main progress arc */}
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        strokeDashoffset={animatedOffset}
+        style={{
+          transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease',
+        }}
+      />
+
+      {/* Spark dot at the tip */}
+      {!isComplete && (
+        <circle
+          cx={size / 2 + r * Math.cos((animatedOffset / circ - 1) * 2 * Math.PI)}
+          cy={size / 2 + r * Math.sin((animatedOffset / circ - 1) * 2 * Math.PI)}
+          r={stroke / 2 + 1}
+          fill={color}
+          style={{
+            filter: 'blur(1px)',
+            opacity: glowing ? 1 : 0,
+            transition: 'opacity 0.3s ease',
+          }}
+        />
+      )}
     </svg>
   )
 }
@@ -473,7 +547,7 @@ export function TimeDetails() {
       <header className="relative z-10 border-b border-white/[0.05]">
         <div className="mx-auto max-w-2xl px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {mounted && <MiniAnalogClock size={100} />}
+            {mounted && <MiniAnalogClock size={120} />}
             <div>
               <p className="text-[10px] uppercase tracking-[0.15em] text-white/25">Welcome</p>
               <p style={{ fontWeight: 'bold' }} className="text-lg font-bold text-white/80 font-light">
@@ -484,7 +558,12 @@ export function TimeDetails() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <div className="text-right">
+              {/* <p className="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-1">Date</p> */}
+              <p style={{ fontWeight: 'bold' }} className="text-sm text-white/60 font-light">{formatDate(data.attendanceDate)}</p>
+            </div>
             {mounted && <LiveDigitalClock />}
+
             <button
               onClick={handleLogout}
               className="p-2 rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
@@ -492,13 +571,14 @@ export function TimeDetails() {
               <LogOut className="h-4 w-4 text-white/30 hover:text-white/50" />
             </button>
           </div>
+
         </div>
       </header>
 
       {/* ─── Content ─── */}
       <main className="relative z-10 mx-auto max-w-2xl px-5 py-2 space-y-6">
         {/* ─── Shift Info (compact) ─── */}
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-3">
+        {/* <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-1">Shift</p>
@@ -514,7 +594,7 @@ export function TimeDetails() {
               <p className="text-[10px] text-white/15 tracking-wider">{data.policyName}</p>
             </div>
           )}
-        </div>
+        </div> */}
         {/* ─── Hero: Completion / Status ─── */}
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
           <div className="relative p-4 text-center">
