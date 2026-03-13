@@ -102,36 +102,26 @@ export async function getClockInDetails(
   clockDate: string
 ): Promise<ClockDetailsResponse> {
   try {
-    console.log('[v0] Calling clock details API with:', { employeeCode, clockDate })
-
-    const response = await fetch(
-      `${API_BASE_URL}/attendanceservice/attendancelogs/clockindetails`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          employeeCode,
-          clockDate,
-        }),
-      }
-    )
-
-    console.log('[v0] Clock details response status:', response.status)
+    const response = await fetch("/api/clock-details", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        employeeCode,
+        clockDate,
+      }),
+    })
 
     if (!response.ok) {
-      const errorData = await response.text()
-      console.error('[v0] API error response:', errorData)
-      throw new Error(`Failed to fetch clock details with status ${response.status}`)
+      throw new Error("Failed to fetch clock details")
     }
 
     const data = await response.json()
-    console.log('[v0] Clock details received:', data)
     return data
   } catch (error) {
-    console.error('[v0] Clock details API error:', error)
+    console.error("Clock details API error:", error)
     throw error
   }
 }
