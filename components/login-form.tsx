@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
-import Adsense from "@/components/Adsense"
+import {adsense} from "@/components/Adsense"
 
 function AnalogClock({ size = 280 }: { size?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
