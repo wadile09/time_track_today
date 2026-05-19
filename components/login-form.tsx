@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
+import Adsense from "@/components/Adsense"
 
 function AnalogClock({ size = 280 }: { size?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -400,7 +401,9 @@ export function LoginForm() {
             </form>
           </div>
         </div>
-
+<div className="w-full max-w-sm mt-6">
+  <Adsense />
+</div>
         {/* Footer */}
         <div className="mt-8 flex flex-col items-center gap-3 opacity-20 hover:opacity-50 transition-all duration-1000 cursor-default group">
           <div className="flex items-center gap-4">
