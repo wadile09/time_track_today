@@ -1,5 +1,6 @@
 import React from "react"
 import type { Metadata } from 'next'
+import Script from "next/script"
 import { Geist, Geist_Mono } from 'next/font/google'
 
 import './globals.css'
@@ -20,7 +21,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+
+        {/* Google AdSense Script */}
+        <Script
+          async
+          strategy="afterInteractive"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+          crossOrigin="anonymous"
+        />
+
+        {children}
+
+      </body>
     </html>
   )
 }
