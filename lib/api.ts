@@ -66,7 +66,7 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
     console.log('[v0] Calling login API with credentials:', { username: credentials.username })
 
     const response = await fetch(
-      `${API_BASE_URL}/userservice/account/login`,
+      `/api/login`,
       {
         method: 'POST',
         headers: {
@@ -148,7 +148,7 @@ export interface UpcomingEventsResponse {
 export async function getUpcomingEvents(token: string): Promise<UpcomingEventsResponse> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/leaveservice/dashboard/upcoming/events`,
+      `/api/upcoming-events`,
       {
         method: 'GET',
         headers: {
