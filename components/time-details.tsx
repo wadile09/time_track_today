@@ -206,6 +206,7 @@ export function TimeDetails() {
   const [showGetReadyPopup, setShowGetReadyPopup] = useState(false)
   const getReadyShownRef = useRef(false)
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidayDetail[]>([])
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toLocaleDateString('en-CA'))
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -252,10 +253,7 @@ export function TimeDetails() {
       try {
         setSession(authSession)
 
-        const today = new Date()
-        const clockDate = today.toISOString().split('T')[0]
-
-        let response = await getClockInDetails(authSession.token, authSession.employeeCode, clockDate)
+        let response = await getClockInDetails(authSession.token, authSession.employeeCode, selectedDate)
 
         // 3. If the stored token has expired, silently refresh it once
         if (!response.isSuccess) {
@@ -272,7 +270,7 @@ export function TimeDetails() {
             if (fresh) {
               authSession = fresh
               setSession(fresh)
-              response = await getClockInDetails(fresh.token, fresh.employeeCode, clockDate)
+              response = await getClockInDetails(fresh.token, fresh.employeeCode, selectedDate)
             } else {
               // Credentials are also invalid — must log in manually
               localStorage.removeItem('authSession')
@@ -331,7 +329,7 @@ export function TimeDetails() {
       }
     }
     initializeData()
-  }, [router, toast])
+  }, [router, toast, selectedDate])
 
   const handleLogout = () => {
     localStorage.removeItem('authSession')
@@ -344,6 +342,16 @@ export function TimeDetails() {
     if (!calculation?.firstPunchInDate) return
 
     const updateLiveValues = () => {
+      const todayString = new Date().toLocaleDateString('en-CA')
+      const isToday = selectedDate === todayString
+
+      if (!isToday) {
+        setLiveWorkMinutes(calculation.totalWorkMinutes)
+        setLiveBreakMinutes(calculation.totalBreakMinutes)
+        setTimeRemaining('--:--:--')
+        return
+      }
+
       const now = new Date()
       const firstPunch = new Date(calculation.firstPunchInDate)
       const elapsedMinutes = Math.max(0, (now.getTime() - firstPunch.getTime()) / (1000 * 60))
@@ -361,7 +369,7 @@ export function TimeDetails() {
       //   const workDone = calculation.isCurrentlyIn
       //     ? (elapsedMinutes - calculation.totalBreakMinutes)
       //     : calculation.totalWorkMinutes
-      //   const pct = (workDone / calculation.requiredMinutes) * 100
+      //   const pct = (work flow / calculation.requiredMinutes) * 100
       //   if (pct >= 90 && pct <= 95) {
       //     getReadyShownRef.current = true
       //     setShowGetReadyPopup(true)
@@ -403,7 +411,7 @@ export function TimeDetails() {
     updateLiveValues()
     const interval = setInterval(updateLiveValues, 1000)
     return () => clearInterval(interval)
-  }, [calculation])
+  }, [calculation, selectedDate])
 
   // Completion time
   const calculateCompletionTime = () => {
@@ -558,9 +566,20 @@ export function TimeDetails() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="text-right">
-              {/* <p className="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-1">Date</p> */}
-              <p style={{ fontWeight: 'bold' }} className="text-sm text-white/60 font-light">{formatDate(data.attendanceDate)}</p>
+            <div className="text-right flex items-center gap-2">
+              <input
+                type="date"
+                value={selectedDate}
+                max={new Date().toLocaleDateString('en-CA')}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setLoading(true)
+                    setSelectedDate(e.target.value)
+                  }
+                }}
+                className="bg-white/[0.03] border border-white/[0.06] rounded-lg text-white/60 text-sm px-2 py-1 outline-none focus:border-white/20 transition-colors"
+                style={{ colorScheme: 'dark' }}
+              />
             </div>
             {mounted && <LiveDigitalClock />}
 
