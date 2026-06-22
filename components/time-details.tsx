@@ -206,6 +206,7 @@ export function TimeDetails() {
   const [showGetReadyPopup, setShowGetReadyPopup] = useState(false)
   const getReadyShownRef = useRef(false)
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidayDetail[]>([])
+  const [holidayDateStrings, setHolidayDateStrings] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toLocaleDateString('en-CA'))
 
   useEffect(() => { setMounted(true) }, [])
@@ -314,6 +315,13 @@ export function TimeDetails() {
               return diffDays >= 0 && diffDays <= 2
             })
             setUpcomingHolidays(filtered)
+
+            const allHolidayStrings = eventsRes.data.holidayDetails.map((h: HolidayDetail) => {
+              const d = new Date(h.day)
+              d.setHours(0, 0, 0, 0)
+              return d.toLocaleDateString('en-CA')
+            })
+            setHolidayDateStrings(allHolidayStrings)
           }
         } catch {
           // Silently ignore holiday fetch errors
@@ -428,6 +436,37 @@ export function TimeDetails() {
     }).toUpperCase()
   }
 
+  const getNextWorkingDayName = () => {
+    let checkDate = new Date()
+    checkDate.setHours(0, 0, 0, 0)
+    
+    // Start checking from tomorrow
+    checkDate.setDate(checkDate.getDate() + 1)
+    
+    while (true) {
+      const dayOfWeek = checkDate.getDay() // 0 is Sunday, 6 is Saturday
+      const dateString = checkDate.toLocaleDateString('en-CA')
+      
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+      const isHoliday = holidayDateStrings.includes(dateString)
+      
+      if (!isWeekend && !isHoliday) {
+        break
+      }
+      checkDate.setDate(checkDate.getDate() + 1)
+    }
+    
+    const tomorrow = new Date()
+    tomorrow.setHours(0, 0, 0, 0)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    
+    if (checkDate.getTime() === tomorrow.getTime()) {
+      return 'Kale'
+    } else {
+      return checkDate.toLocaleDateString('en-US', { weekday: 'long' })
+    }
+  }
+
   /* ─── Loading ─── */
   if (loading) {
     return (
@@ -527,7 +566,7 @@ export function TimeDetails() {
                 className="text-8xl font-black tracking-tighter text-transparent bg-clip-text"
                 style={{ backgroundImage: 'linear-gradient(135deg, #34d399, #6ee7b7, #fff)' }}
               >
-                A Aavjo!!! Kale Maliye
+                A Aavjo!!! {getNextWorkingDayName()} Maliye
               </h1>
               <p className="text-white/30 text-sm font-light tracking-wide">
                 You&apos;ve served your time. Your freedom awaits.
