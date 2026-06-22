@@ -75,8 +75,19 @@ export function calculateTimeFromSessions(
     parseUTCTime(a.clockTime).getTime() - parseUTCTime(b.clockTime).getTime()
   )
 
+  // Deduplicate consecutive INs and OUTs (take the first of each)
+  const cleanedDetails: Array<{ inOutType: 'IN' | 'OUT'; clockTime: string }> = []
+  let lastType: 'IN' | 'OUT' | null = null
+
+  for (const detail of sortedDetails) {
+    if (detail.inOutType !== lastType) {
+      cleanedDetails.push(detail)
+      lastType = detail.inOutType
+    }
+  }
+
   // Find first punch in and clamp to 9:30 AM IST if before
-  const firstInEvent = sortedDetails.find(d => d.inOutType === 'IN')
+  const firstInEvent = cleanedDetails.find(d => d.inOutType === 'IN')
   let firstPunchInDate: Date | null = null
   let firstPunchIn: string | null = null
 
@@ -91,15 +102,15 @@ export function calculateTimeFromSessions(
   let totalBreakMinutes = 0
 
   let i = 0
-  while (i < sortedDetails.length) {
-    const current = sortedDetails[i]
+  while (i < cleanedDetails.length) {
+    const current = cleanedDetails[i]
 
     // Look for a complete session (IN followed by OUT)
     if (current.inOutType === 'IN') {
       let nextSessionIndex = i + 1
 
-      if (nextSessionIndex < sortedDetails.length && sortedDetails[nextSessionIndex].inOutType === 'OUT') {
-        const outEvent = sortedDetails[nextSessionIndex]
+      if (nextSessionIndex < cleanedDetails.length && cleanedDetails[nextSessionIndex].inOutType === 'OUT') {
+        const outEvent = cleanedDetails[nextSessionIndex]
 
         const inDate = parseUTCTime(current.clockTime)
         const outDate = parseUTCTime(outEvent.clockTime)
@@ -115,8 +126,8 @@ export function calculateTimeFromSessions(
 
         // Check for break (gap until next IN)
         const nextInIndex = nextSessionIndex + 1
-        if (nextInIndex < sortedDetails.length && sortedDetails[nextInIndex].inOutType === 'IN') {
-          const nextInDate = parseUTCTime(sortedDetails[nextInIndex].clockTime)
+        if (nextInIndex < cleanedDetails.length && cleanedDetails[nextInIndex].inOutType === 'IN') {
+          const nextInDate = parseUTCTime(cleanedDetails[nextInIndex].clockTime)
           const breakDuration = calculateDurationMinutes(outDate, nextInDate)
           totalBreakMinutes += Math.max(0, breakDuration)
         }
@@ -136,7 +147,7 @@ export function calculateTimeFromSessions(
   const differenceMinutes = totalWorkMinutes - REQUIRED_MINUTES
 
   // Last event status
-  const lastEvent = sortedDetails[sortedDetails.length - 1]
+  const lastEvent = cleanedDetails[cleanedDetails.length - 1]
   const isCurrentlyIn = lastEvent?.inOutType === 'IN'
   const lastPunchTime = lastEvent ? parseUTCTime(lastEvent.clockTime) : null
 
