@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Loader2, LogOut, Clock } from 'lucide-react'
-import { login, getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail } from '@/lib/api'
+import { Loader2, LogOut, Clock, ChevronDown, Search, Check } from 'lucide-react'
+import { login, getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail, getEmployeeList, Employee } from '@/lib/api'
 import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculation'
 import { useToast } from '@/hooks/use-toast'
 
@@ -189,6 +189,95 @@ function ProgressRing({ percentage, size = 140 }: { percentage: number; size?: n
   )
 }
 
+/* ─── Searchable Employee Dropdown ─── */
+function SearchableEmployeeDropdown({
+  employees,
+  value,
+  onChange,
+  disabled
+}: {
+  employees: Employee[],
+  value: string,
+  onChange: (val: string) => void,
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const selectedEmp = employees.find(e => e.employeeCode === value)
+  const filtered = employees.filter(e => 
+    `${e.firstName} ${e.lastName}`.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        disabled={disabled}
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-40 bg-white/[0.03] border border-white/[0.06] rounded-lg px-2 py-1 text-sm text-white/60 hover:bg-white/[0.06] hover:border-white/10 transition-colors disabled:opacity-50"
+      >
+        <span className="truncate pr-2 font-light">
+          {selectedEmp ? `${selectedEmp.firstName} ${selectedEmp.lastName}` : "Select employee..."}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-white/30 shrink-0 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full mt-2 w-56 right-0 bg-black border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-2 border-b border-white/[0.04]">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search employee..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-lg pl-9 pr-3 py-1.5 text-xs text-white/80 outline-none focus:border-white/20 focus:bg-white/[0.05] transition-colors"
+              />
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto p-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-white/30 text-center py-6 font-light">No employees found.</p>
+            ) : (
+              filtered.map(emp => (
+                <button
+                  key={emp.employeeCode}
+                  onClick={() => {
+                    onChange(emp.employeeCode)
+                    setOpen(false)
+                    setSearch('')
+                  }}
+                  className={`w-full text-left flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-all duration-200 ${
+                    value === emp.employeeCode 
+                      ? 'bg-white/10 text-white font-medium shadow-sm' 
+                      : 'text-white/60 hover:bg-white/[0.04] hover:text-white/90 font-light'
+                  }`}
+                >
+                  <span className="truncate pr-2">{emp.firstName} {emp.lastName}</span>
+                  {value === emp.employeeCode && <Check className="w-3.5 h-3.5 text-white/80 shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main Component ─── */
 export function TimeDetails() {
   const router = useRouter()
@@ -208,6 +297,10 @@ export function TimeDetails() {
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidayDetail[]>([])
   const [holidayDateStrings, setHolidayDateStrings] = useState<string[]>([])
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toLocaleDateString('en-CA'))
+
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [selectedEmployeeCode, setSelectedEmployeeCode] = useState<string>('')
+  const employeesFetched = useRef(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -254,7 +347,23 @@ export function TimeDetails() {
       try {
         setSession(authSession)
 
-        let response = await getClockInDetails(authSession.token, authSession.employeeCode, selectedDate)
+        if (!employeesFetched.current) {
+          try {
+            const empRes = await getEmployeeList(authSession.token)
+            if (empRes.isSuccess && empRes.data) {
+              const list = Array.isArray(empRes.data) 
+                ? empRes.data 
+                : (empRes.data.directoryList || empRes.data.employees || empRes.data.employeeList || Object.values(empRes.data).find(Array.isArray) || [])
+              setEmployees(list)
+              employeesFetched.current = true
+            }
+          } catch {
+            // Silently ignore if employee list fails
+          }
+        }
+
+        const employeeToFetch = selectedEmployeeCode || authSession.employeeCode
+        let response = await getClockInDetails(authSession.token, employeeToFetch, selectedDate)
 
         // 3. If the stored token has expired, silently refresh it once
         if (!response.isSuccess) {
@@ -271,7 +380,8 @@ export function TimeDetails() {
             if (fresh) {
               authSession = fresh
               setSession(fresh)
-              response = await getClockInDetails(fresh.token, fresh.employeeCode, selectedDate)
+              const newEmployeeToFetch = selectedEmployeeCode || fresh.employeeCode
+              response = await getClockInDetails(fresh.token, newEmployeeToFetch, selectedDate)
             } else {
               // Credentials are also invalid — must log in manually
               localStorage.removeItem('authSession')
@@ -337,7 +447,7 @@ export function TimeDetails() {
       }
     }
     initializeData()
-  }, [router, toast, selectedDate])
+  }, [router, toast, selectedDate, selectedEmployeeCode])
 
   const handleLogout = () => {
     localStorage.removeItem('authSession')
@@ -591,20 +701,31 @@ export function TimeDetails() {
       }} />
 
       {/* ─── Header ─── */}
-      <header className="relative z-10 border-b border-white/[0.05]">
-        <div className="mx-auto max-w-2xl px-5 py-4 flex items-center justify-between">
+      <header className="relative z-50 border-b border-white/[0.05]">
+        <div className="mx-auto max-w-4xl px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {mounted && <MiniAnalogClock size={120} />}
             <div>
               <p className="text-[10px] uppercase tracking-[0.15em] text-white/25">Welcome</p>
-              <p style={{ fontWeight: 'bold' }} className="text-lg font-bold text-white/80 font-light">
+              <p style={{ fontWeight: 'bold' }} className="text-lg font-bold text-white/80 font-light whitespace-nowrap">
                 {session.firstName && session.lastName
                   ? `${session.firstName} ${session.lastName}`
                   : session.employeeName}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {employees.length > 0 && (
+              <SearchableEmployeeDropdown
+                disabled={loading}
+                employees={employees}
+                value={selectedEmployeeCode || session.employeeCode}
+                onChange={(newCode) => {
+                  setLoading(true)
+                  setSelectedEmployeeCode(newCode)
+                }}
+              />
+            )}
             <div className="text-right flex items-center gap-2">
               <input
                 type="date"
@@ -634,7 +755,7 @@ export function TimeDetails() {
       </header>
 
       {/* ─── Content ─── */}
-      <main className="relative z-10 mx-auto max-w-2xl px-5 py-2 space-y-6">
+      <main className="relative z-10 mx-auto max-w-4xl px-5 py-2 space-y-6">
         {/* ─── Shift Info (compact) ─── */}
         {/* <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-3">
           <div className="flex items-center justify-between">
