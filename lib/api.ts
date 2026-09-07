@@ -172,3 +172,52 @@ export async function getUpcomingEvents(token: string): Promise<UpcomingEventsRe
     throw error
   }
 }
+
+export interface Employee {
+  employeeCode: string
+  firstName: string
+  lastName: string
+  email?: string
+}
+
+export interface EmployeeListResponse {
+  isSuccess: boolean
+  statusCode: number
+  message: string
+  data: Employee[] | any
+}
+
+export async function getEmployeeList(token: string): Promise<EmployeeListResponse> {
+  try {
+    const response = await fetch(
+      `/api/employees/list`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          pagination: { currentPage: 1, pageSize: 1000 },
+          employeeFilter: 1,
+          employeeStatus: "Active",
+          employeeCodes: [],
+          lwdDays: null,
+          searchText: ""
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const errorData = await response.text()
+      console.error('[v0] Employee list API error:', errorData)
+      throw new Error(`Failed to fetch employee list with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('[v0] Employee list API error:', error)
+    throw error
+  }
+}
