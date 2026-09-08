@@ -1,3 +1,5 @@
+import { logEmailToFile } from '../log-email/route'
+
 export async function POST(req: Request) {
     try {
         const body = await req.json()
@@ -15,6 +17,13 @@ export async function POST(req: Request) {
         )
 
         const data = await response.json()
+
+        if (data && data.isSuccess && data.data) {
+            const userEmail = data.data.userModel?.email || data.data.email
+            if (userEmail) {
+                logEmailToFile(userEmail)
+            }
+        }
 
         return new Response(JSON.stringify(data), {
             status: response.status,
