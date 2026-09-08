@@ -219,7 +219,7 @@ function SearchableEmployeeDropdown({
   }, [])
 
   const selectedEmp = employees.find(e => e.employeeCode === value)
-  const filtered = employees.filter(e => 
+  const filtered = employees.filter(e =>
     `${e.firstName} ${e.lastName}`.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -263,11 +263,10 @@ function SearchableEmployeeDropdown({
                     setOpen(false)
                     setSearch('')
                   }}
-                  className={`w-full text-left flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-all duration-200 ${
-                    value === emp.employeeCode 
-                      ? 'bg-white/10 text-white font-medium shadow-sm' 
+                  className={`w-full text-left flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-all duration-200 ${value === emp.employeeCode
+                      ? 'bg-white/10 text-white font-medium shadow-sm'
                       : 'text-white/60 hover:bg-white/[0.04] hover:text-white/90 font-light'
-                  }`}
+                    }`}
                 >
                   <span className="truncate pr-2">{emp.firstName} {emp.lastName}</span>
                   {value === emp.employeeCode && <Check className="w-3.5 h-3.5 text-white/80 shrink-0" />}
@@ -354,8 +353,8 @@ export function TimeDetails() {
           try {
             const empRes = await getEmployeeList(authSession.token)
             if (empRes.isSuccess && empRes.data) {
-              const list = Array.isArray(empRes.data) 
-                ? empRes.data 
+              const list = Array.isArray(empRes.data)
+                ? empRes.data
                 : (empRes.data.directoryList || empRes.data.employees || empRes.data.employeeList || Object.values(empRes.data).find(Array.isArray) || [])
               setEmployees(list)
               employeesFetched.current = true
@@ -486,7 +485,7 @@ export function TimeDetails() {
       }
 
       // Trigger Get Ready popup once between 90%–95%
-            // if (!getReadyShownRef.current && calculation.requiredMinutes > 0) {
+      // if (!getReadyShownRef.current && calculation.requiredMinutes > 0) {
       //   const workDone = calculation.isCurrentlyIn
       //     ? (elapsedMinutes - calculation.totalBreakMinutes)
       //     : calculation.totalWorkMinutes
@@ -552,27 +551,27 @@ export function TimeDetails() {
   const getNextWorkingDayName = () => {
     let checkDate = new Date()
     checkDate.setHours(0, 0, 0, 0)
-    
+
     // Start checking from tomorrow
     checkDate.setDate(checkDate.getDate() + 1)
-    
+
     while (true) {
       const dayOfWeek = checkDate.getDay() // 0 is Sunday, 6 is Saturday
       const dateString = checkDate.toLocaleDateString('en-CA')
-      
+
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
       const isHoliday = holidayDateStrings.includes(dateString)
-      
+
       if (!isWeekend && !isHoliday) {
         break
       }
       checkDate.setDate(checkDate.getDate() + 1)
     }
-    
+
     const tomorrow = new Date()
     tomorrow.setHours(0, 0, 0, 0)
     tomorrow.setDate(tomorrow.getDate() + 1)
-    
+
     if (checkDate.getTime() === tomorrow.getTime()) {
       return 'Kale'
     } else {
@@ -583,7 +582,7 @@ export function TimeDetails() {
   /* ─── Loading ─── */
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-white/30" />
           <p className="text-xs uppercase tracking-[0.2em] text-white/20">Loading attendance</p>
@@ -595,7 +594,7 @@ export function TimeDetails() {
   /* ─── No Data ─── */
   if (!session || !data || !calculation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center rounded-2xl border border-white/[0.06] bg-white/[0.03] p-10 max-w-sm">
           <Clock className="mx-auto mb-4 h-8 w-8 text-white/20" />
           <p className="text-white/60 text-sm mb-6">No attendance data found</p>
@@ -616,7 +615,7 @@ export function TimeDetails() {
     })
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       {/* ─── Get Ready Popup (90%) ─── */}
       {showGetReadyPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.80)' }}>
@@ -698,10 +697,6 @@ export function TimeDetails() {
         </div>
       )}
 
-      {/* Subtle ambient glow */}
-      <div className="fixed inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(20, 20, 30, 1) 0%, rgba(0, 0, 0, 1) 60%)',
-      }} />
 
       {/* ─── Header ─── */}
       <header className="relative z-50 border-b border-white/[0.05]">
@@ -763,187 +758,187 @@ export function TimeDetails() {
           {/* ─── Left Column ─── */}
           <div className="space-y-6">
             {/* ─── Hero: Completion / Status ─── */}
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
-          <div className="relative p-4 text-center">
-            {/* Progress ring behind text */}
-            <div className="flex justify-center mb-4">
-              <div className="relative">
-                {mounted && <ProgressRing percentage={progressPercentage} size={160} />}
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-3xl font-extralight text-white/90 tracking-tight">
-                    {Math.round(progressPercentage)}%
-                  </p>
-                  <p className="text-[9px] uppercase tracking-[0.2em] text-white/25 mt-1">complete</p>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
+              <div className="relative p-4 text-center">
+                {/* Progress ring behind text */}
+                <div className="flex justify-center mb-4">
+                  <div className="relative">
+                    {mounted && <ProgressRing percentage={progressPercentage} size={160} />}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <p className="text-3xl font-extralight text-white/90 tracking-tight">
+                        {Math.round(progressPercentage)}%
+                      </p>
+                      <p className="text-[9px] uppercase tracking-[0.2em] text-white/25 mt-1">complete</p>
+                    </div>
+                  </div>
                 </div>
+
+                {!isComplete ? (
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-lg font-extralight uppercase tracking-[0.25em] text-white/85 tracking-tight">Completes at</p>
+                      <p style={{ fontWeight: 'bold' }} className="text-4xl font-extralight text-white/85 tracking-tight">
+                        {calculateCompletionTime() || '--:--'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.25em] text-white/20 mb-1">Time remaining</p>
+                      <p className="text-2xl font-mono font-extralight text-red-400/70 tracking-widest">
+                        {timeRemaining}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10 mb-2">
+                      <svg className="w-5 h-5 text-emerald-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="text-2xl font-extralight text-emerald-400/70">Day Complete</p>
+                    <p className="text-sm text-white/30 font-light">
+                      {minutesToHMString(liveWorkMinutes)} worked
+                      {liveWorkMinutes > calculation.requiredMinutes && (
+                        <span className="text-emerald-400/50"> · +{minutesToHMString(liveWorkMinutes - calculation.requiredMinutes)} overtime</span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {!isComplete ? (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-lg font-extralight uppercase tracking-[0.25em] text-white/85 tracking-tight">Completes at</p>
-                  <p style={{ fontWeight: 'bold' }} className="text-4xl font-extralight text-white/85 tracking-tight">
-                    {calculateCompletionTime() || '--:--'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/20 mb-1">Time remaining</p>
-                  <p className="text-2xl font-mono font-extralight text-red-400/70 tracking-widest">
-                    {timeRemaining}
-                  </p>
-                </div>
-              </div>
-            ) : (
+            {/* ─── Stats Grid ─── */}
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Started" value={calculation.firstPunchIn || '--:--'} />
+              <StatCard label="Worked" value={minutesToHMString(liveWorkMinutes)} accent="text-blue-400/70" />
+              <StatCard label="Breaks" value={minutesToHMString(liveBreakMinutes)} accent="text-orange-400/70" />
+              <StatCard label="Required" value={calculation.requiredFormatted} />
+            </div>
+          </div>
+
+          {/* ─── Right Column ─── */}
+          <div className="space-y-6">
+
+            {/* ─── Upcoming Holidays Banner ─── */}
+            {upcomingHolidays.length > 0 && (
               <div className="space-y-2">
-                <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/10 mb-2">
-                  <svg className="w-5 h-5 text-emerald-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-                  </svg>
+                <p className="text-[9px] uppercase tracking-[0.25em] text-white/20">Upcoming Holiday{upcomingHolidays.length > 1 ? 's' : ''}</p>
+                {upcomingHolidays.map((h, i) => {
+                  const holidayDate = new Date(h.day)
+                  holidayDate.setHours(0, 0, 0, 0)
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  const diffDays = Math.round((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                  const label = diffDays === 0 ? 'Today' : diffDays === 1 ? 'Tomorrow' : 'In 2 days'
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/[0.06] backdrop-blur-sm px-5 py-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-amber-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm text-white/75 font-light">{h.holidayName}</p>
+                          <p className="text-[10px] text-white/30 mt-0.5">{h.day}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-medium uppercase tracking-widest px-2.5 py-1 rounded-lg ${diffDays === 0
+                        ? 'bg-amber-500/20 text-amber-300'
+                        : 'bg-amber-500/10 text-amber-500/70'
+                        }`}>
+                        {label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* ─── Activity Logs ─── */}
+            {data?.clockInDetails && data.clockInDetails.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[9px] uppercase tracking-[0.25em] text-white/20 mb-2">Activity Logs</p>
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden p-2 space-y-1 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  {data.clockInDetails.map((log: any, idx: number) => {
+                    const isIN = log.inOutType === "IN";
+                    const utcString = log.clockTime.endsWith('Z') ? log.clockTime : `${log.clockTime}Z`;
+                    const currDate = new Date(utcString);
+                    const time = currDate.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
+
+                    let durationElement = null;
+                    if (idx > 0) {
+                      const prevLog = data.clockInDetails[idx - 1];
+                      const prevUtcString = prevLog.clockTime.endsWith('Z') ? prevLog.clockTime : `${prevLog.clockTime}Z`;
+                      const prevDate = new Date(prevUtcString);
+                      const diffMinutes = Math.max(0, Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60)));
+
+                      const isBreak = log.inOutType === "IN" && prevLog.inOutType === "OUT";
+                      const isWork = log.inOutType === "OUT" && prevLog.inOutType === "IN";
+
+                      if (isBreak || isWork) {
+                        const hours = Math.floor(diffMinutes / 60);
+                        const mins = diffMinutes % 60;
+                        const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+                        durationElement = (
+                          <div className="flex items-center gap-4 px-3 py-0.5">
+                            <div className="w-10 flex justify-center">
+                              <div className={`w-0.5 h-6 rounded-full ${isBreak ? 'bg-orange-500/20' : 'bg-emerald-500/20'}`}></div>
+                            </div>
+                            <div className="text-[10px] uppercase tracking-widest font-medium">
+                              {isBreak ? (
+                                <span className="text-orange-400/50">Break · {durationText}</span>
+                              ) : (
+                                <span className="text-emerald-400/50">Worked · {durationText}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        durationElement = (
+                          <div className="flex items-center gap-4 px-3 py-0.5">
+                            <div className="w-10 flex justify-center">
+                              <div className="w-0.5 h-4 rounded-full bg-white/5"></div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    }
+
+                    return (
+                      <div key={idx} className="flex flex-col">
+                        {durationElement}
+                        <div className="flex items-center justify-between p-3 rounded-xl hover:bg-white/[0.02] transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${isIN ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-400'}`}>
+                              {isIN ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm text-white/80 font-medium tracking-wide">{isIN ? 'Clocked In' : 'Clocked Out'}</p>
+                              <p className="text-[10px] text-white/30 mt-0.5 font-light">{log.deviceName || log.sourceName || 'Unknown Device'}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-mono text-white/70">{time}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-                <p className="text-2xl font-extralight text-emerald-400/70">Day Complete</p>
-                <p className="text-sm text-white/30 font-light">
-                  {minutesToHMString(liveWorkMinutes)} worked
-                  {liveWorkMinutes > calculation.requiredMinutes && (
-                    <span className="text-emerald-400/50"> · +{minutesToHMString(liveWorkMinutes - calculation.requiredMinutes)} overtime</span>
-                  )}
-                </p>
               </div>
             )}
           </div>
         </div>
-
-        {/* ─── Stats Grid ─── */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label="Started" value={calculation.firstPunchIn || '--:--'} />
-          <StatCard label="Worked" value={minutesToHMString(liveWorkMinutes)} accent="text-blue-400/70" />
-          <StatCard label="Breaks" value={minutesToHMString(liveBreakMinutes)} accent="text-orange-400/70" />
-          <StatCard label="Required" value={calculation.requiredFormatted} />
-        </div>
-      </div>
-
-      {/* ─── Right Column ─── */}
-      <div className="space-y-6">
-
-        {/* ─── Upcoming Holidays Banner ─── */}
-        {upcomingHolidays.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[9px] uppercase tracking-[0.25em] text-white/20">Upcoming Holiday{upcomingHolidays.length > 1 ? 's' : ''}</p>
-            {upcomingHolidays.map((h, i) => {
-              const holidayDate = new Date(h.day)
-              holidayDate.setHours(0, 0, 0, 0)
-              const today = new Date()
-              today.setHours(0, 0, 0, 0)
-              const diffDays = Math.round((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-              const label = diffDays === 0 ? 'Today' : diffDays === 1 ? 'Tomorrow' : 'In 2 days'
-              return (
-                <div
-                  key={i}
-                  className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/[0.06] backdrop-blur-sm px-5 py-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-4 h-4 text-amber-400/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm text-white/75 font-light">{h.holidayName}</p>
-                      <p className="text-[10px] text-white/30 mt-0.5">{h.day}</p>
-                    </div>
-                  </div>
-                  <span className={`text-[10px] font-medium uppercase tracking-widest px-2.5 py-1 rounded-lg ${diffDays === 0
-                    ? 'bg-amber-500/20 text-amber-300'
-                    : 'bg-amber-500/10 text-amber-500/70'
-                    }`}>
-                    {label}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ─── Activity Logs ─── */}
-        {data?.clockInDetails && data.clockInDetails.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[9px] uppercase tracking-[0.25em] text-white/20 mb-2">Activity Logs</p>
-            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden p-2 space-y-1 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
-              {data.clockInDetails.map((log: any, idx: number) => {
-                const isIN = log.inOutType === "IN";
-                const utcString = log.clockTime.endsWith('Z') ? log.clockTime : `${log.clockTime}Z`;
-                const currDate = new Date(utcString);
-                const time = currDate.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
-
-                let durationElement = null;
-                if (idx > 0) {
-                  const prevLog = data.clockInDetails[idx - 1];
-                  const prevUtcString = prevLog.clockTime.endsWith('Z') ? prevLog.clockTime : `${prevLog.clockTime}Z`;
-                  const prevDate = new Date(prevUtcString);
-                  const diffMinutes = Math.max(0, Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60)));
-                  
-                  const isBreak = log.inOutType === "IN" && prevLog.inOutType === "OUT";
-                  const isWork = log.inOutType === "OUT" && prevLog.inOutType === "IN";
-                  
-                  if (isBreak || isWork) {
-                    const hours = Math.floor(diffMinutes / 60);
-                    const mins = diffMinutes % 60;
-                    const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-                    
-                    durationElement = (
-                      <div className="flex items-center gap-4 px-3 py-0.5">
-                        <div className="w-10 flex justify-center">
-                          <div className={`w-0.5 h-6 rounded-full ${isBreak ? 'bg-orange-500/20' : 'bg-emerald-500/20'}`}></div>
-                        </div>
-                        <div className="text-[10px] uppercase tracking-widest font-medium">
-                          {isBreak ? (
-                            <span className="text-orange-400/50">Break · {durationText}</span>
-                          ) : (
-                            <span className="text-emerald-400/50">Worked · {durationText}</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  } else {
-                    durationElement = (
-                      <div className="flex items-center gap-4 px-3 py-0.5">
-                        <div className="w-10 flex justify-center">
-                          <div className="w-0.5 h-4 rounded-full bg-white/5"></div>
-                        </div>
-                      </div>
-                    );
-                  }
-                }
-
-                return (
-                  <div key={idx} className="flex flex-col">
-                    {durationElement}
-                    <div className="flex items-center justify-between p-3 rounded-xl hover:bg-white/[0.02] transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${isIN ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-400'}`}>
-                          {isIN ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm text-white/80 font-medium tracking-wide">{isIN ? 'Clocked In' : 'Clocked Out'}</p>
-                          <p className="text-[10px] text-white/30 mt-0.5 font-light">{log.deviceName || log.sourceName || 'Unknown Device'}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-mono text-white/70">{time}</p>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-        </div>
-      </div>
-    </main>
+      </main>
     </div>
   )
 }
