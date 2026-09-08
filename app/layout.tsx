@@ -2,6 +2,7 @@ import React from "react"
 import type { Metadata } from 'next'
 import Script from "next/script"
 import { Geist, Geist_Mono } from 'next/font/google'
+import ParticleWrapper from '@/components/particle-wrapper'
 
 import './globals.css'
 
@@ -21,7 +22,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased bg-black text-white">
+
+        {/* Global particle background */}
+        <ParticleWrapper />
 
         {/* Google AdSense Script */}
         <Script
