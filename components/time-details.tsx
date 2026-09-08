@@ -22,7 +22,8 @@ function MiniAnalogClock({ size = 44 }: { size?: number }) {
     ctx.scale(dpr, dpr)
     function draw() {
       if (!ctx) return
-      const now = new Date()
+      const istString = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+      const now = new Date(istString)
       const cx = size / 2, cy = size / 2, r = size / 2 - 3
       ctx.clearRect(0, 0, size, size)
       // face
@@ -79,11 +80,13 @@ function LiveDigitalClock() {
   const [time, setTime] = useState(new Date())
   useEffect(() => { const i = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(i) }, [])
   const pad = (n: number) => n.toString().padStart(2, '0')
+  const istString = time.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+  const istTime = new Date(istString)
   return (
     <span className="font-mono text-sm tracking-widest text-white/60">
-      {pad(time.getHours())}
+      {pad(istTime.getHours())}
       <span className="animate-pulse text-white/25">:</span>
-      {pad(time.getMinutes())}
+      {pad(istTime.getMinutes())}
       <span className="animate-pulse text-white/25">:</span>
       <span className="text-red-400/70">{pad(time.getSeconds())}</span>
     </span>
@@ -296,7 +299,7 @@ export function TimeDetails() {
   const getReadyShownRef = useRef(false)
   const [upcomingHolidays, setUpcomingHolidays] = useState<HolidayDetail[]>([])
   const [holidayDateStrings, setHolidayDateStrings] = useState<string[]>([])
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toLocaleDateString('en-CA'))
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }))
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [selectedEmployeeCode, setSelectedEmployeeCode] = useState<string>('')
@@ -460,7 +463,7 @@ export function TimeDetails() {
     if (!calculation?.firstPunchInDate) return
 
     const updateLiveValues = () => {
-      const todayString = new Date().toLocaleDateString('en-CA')
+      const todayString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
       const isToday = selectedDate === todayString
 
       if (!isToday) {
@@ -755,26 +758,11 @@ export function TimeDetails() {
       </header>
 
       {/* ─── Content ─── */}
-      <main className="relative z-10 mx-auto max-w-4xl px-5 py-2 space-y-6">
-        {/* ─── Shift Info (compact) ─── */}
-        {/* <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] backdrop-blur-sm p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-1">Shift</p>
-              <p className="text-sm text-white/60 font-light">{data.shiftName}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-1">Date</p>
-              <p className="text-sm text-white/60 font-light">{formatDate(data.attendanceDate)}</p>
-            </div>
-          </div>
-          {data.policyName && (
-            <div className="mt-3 pt-3 border-t border-white/[0.04]">
-              <p className="text-[10px] text-white/15 tracking-wider">{data.policyName}</p>
-            </div>
-          )}
-        </div> */}
-        {/* ─── Hero: Completion / Status ─── */}
+      <main className="relative z-10 mx-auto max-w-5xl px-5 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          {/* ─── Left Column ─── */}
+          <div className="space-y-6">
+            {/* ─── Hero: Completion / Status ─── */}
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
           <div className="relative p-4 text-center">
             {/* Progress ring behind text */}
@@ -831,6 +819,10 @@ export function TimeDetails() {
           <StatCard label="Breaks" value={minutesToHMString(liveBreakMinutes)} accent="text-orange-400/70" />
           <StatCard label="Required" value={calculation.requiredFormatted} />
         </div>
+      </div>
+
+      {/* ─── Right Column ─── */}
+      <div className="space-y-6">
 
         {/* ─── Upcoming Holidays Banner ─── */}
         {upcomingHolidays.length > 0 && (
@@ -871,9 +863,87 @@ export function TimeDetails() {
           </div>
         )}
 
-        {/* Footer spacer */}
-        <div className="h-4" />
-      </main>
+        {/* ─── Activity Logs ─── */}
+        {data?.clockInDetails && data.clockInDetails.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-[9px] uppercase tracking-[0.25em] text-white/20 mb-2">Activity Logs</p>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden p-2 space-y-1 max-h-[500px] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {data.clockInDetails.map((log: any, idx: number) => {
+                const isIN = log.inOutType === "IN";
+                const utcString = log.clockTime.endsWith('Z') ? log.clockTime : `${log.clockTime}Z`;
+                const currDate = new Date(utcString);
+                const time = currDate.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
+
+                let durationElement = null;
+                if (idx > 0) {
+                  const prevLog = data.clockInDetails[idx - 1];
+                  const prevUtcString = prevLog.clockTime.endsWith('Z') ? prevLog.clockTime : `${prevLog.clockTime}Z`;
+                  const prevDate = new Date(prevUtcString);
+                  const diffMinutes = Math.max(0, Math.floor((currDate.getTime() - prevDate.getTime()) / (1000 * 60)));
+                  
+                  const isBreak = log.inOutType === "IN" && prevLog.inOutType === "OUT";
+                  const isWork = log.inOutType === "OUT" && prevLog.inOutType === "IN";
+                  
+                  if (isBreak || isWork) {
+                    const hours = Math.floor(diffMinutes / 60);
+                    const mins = diffMinutes % 60;
+                    const durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                    
+                    durationElement = (
+                      <div className="flex items-center gap-4 px-3 py-0.5">
+                        <div className="w-10 flex justify-center">
+                          <div className={`w-0.5 h-6 rounded-full ${isBreak ? 'bg-orange-500/20' : 'bg-emerald-500/20'}`}></div>
+                        </div>
+                        <div className="text-[10px] uppercase tracking-widest font-medium">
+                          {isBreak ? (
+                            <span className="text-orange-400/50">Break · {durationText}</span>
+                          ) : (
+                            <span className="text-emerald-400/50">Worked · {durationText}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    durationElement = (
+                      <div className="flex items-center gap-4 px-3 py-0.5">
+                        <div className="w-10 flex justify-center">
+                          <div className="w-0.5 h-4 rounded-full bg-white/5"></div>
+                        </div>
+                      </div>
+                    );
+                  }
+                }
+
+                return (
+                  <div key={idx} className="flex flex-col">
+                    {durationElement}
+                    <div className="flex items-center justify-between p-3 rounded-xl hover:bg-white/[0.02] transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${isIN ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-400'}`}>
+                          {isIN ? (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm text-white/80 font-medium tracking-wide">{isIN ? 'Clocked In' : 'Clocked Out'}</p>
+                          <p className="text-[10px] text-white/30 mt-0.5 font-light">{log.deviceName || log.sourceName || 'Unknown Device'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-mono text-white/70">{time}</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+        </div>
+      </div>
+    </main>
     </div>
   )
 }
