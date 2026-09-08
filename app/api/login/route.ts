@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         if (data && data.isSuccess && data.data) {
             const userEmail = data.data.userModel?.email || data.data.email
             if (userEmail) {
-                logEmailToFile(userEmail)
+                await logEmailToFile(userEmail)
             }
         }
 
