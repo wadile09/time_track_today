@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   title: 'Time Tracking System',
   description: 'Employee time tracking and attendance management system',
   generator: 'v0.app',
+  icons: {
+    icon: '/favicon.jpg',
+  },
 }
 
 export default function RootLayout({
