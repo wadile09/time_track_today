@@ -276,9 +276,9 @@ export function LoginForm() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black font-sans">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden font-sans">
       {/* Premium Mesh Gradient Background */}
-      <div className="absolute inset-0 z-0 bg-black overflow-hidden">
+      <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/10 blur-[120px] animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
         <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-purple-600/5 blur-[100px]" />
