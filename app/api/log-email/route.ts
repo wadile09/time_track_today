@@ -25,9 +25,11 @@ export function logEmailToFile(email: string) {
 
     if (!emailExists) {
       lines.push(trimmedEmail)
-      fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf-8')
+      const fileContent = lines.join('\n') + '\n'
+      fs.writeFileSync(filePath, fileContent, 'utf-8')
       return true // Newly added
     }
+
     return false // Already existed
   } catch (err) {
     console.error('Failed to write to emaillogs.txt:', err)
