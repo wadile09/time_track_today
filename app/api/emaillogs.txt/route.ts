@@ -1,57 +1,50 @@
-import fs from 'fs'
-import path from 'path'
-
-declare global {
-  var __EMAIL_LOGS__: Set<string> | undefined
-}
+export const dynamic = 'force-dynamic'; // Ensure this route is not statically cached
 
 export async function GET() {
-  const emailsSet = new Set<string>()
+  const webhookUrl = "https://script.google.com/a/macros/devstree.in/s/AKfycbxmZl5ZbkFh_M_b5oRAGDANSWoTC81H0SIMCA-NHp8gJmw8Eg_Cu7EW7q7tVxvrxExZ/exec";
 
-  // 1. Read from global memory store if initialized
-  if (globalThis.__EMAIL_LOGS__) {
-    globalThis.__EMAIL_LOGS__.forEach(e => emailsSet.add(e))
+  if (!webhookUrl) {
+    return new Response('Webhook URL is not configured', {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
 
-  // 2. Read from disk files
-  const localPaths = [
-    path.join(process.cwd(), 'emaillogs.txt'),
-    path.join(process.cwd(), 'public', 'emaillogs.txt'),
-    path.join('/tmp', 'emaillogs.txt'),
-  ]
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'GET',
+    });
 
-  for (const filePath of localPaths) {
-    try {
-      if (fs.existsSync(filePath)) {
-        const content = fs.readFileSync(filePath, 'utf-8')
-        content
-          .split(/\r?\n/)
-          .map(line => line.trim())
-          .filter(Boolean)
-          .forEach(e => emailsSet.add(e))
+    const data = await response.json();
+
+    if (data.success && Array.isArray(data.emails)) {
+      // Remove the header row if the first item is 'Email' or similar
+      let emails = data.emails;
+      if (emails.length > 0 && emails[0].toLowerCase().includes('email')) {
+        emails = emails.slice(1);
       }
-    } catch {
-      /* ignore read errors */
+
+      // Join the emails with newlines
+      const plainText = emails.join('\n') + '\n';
+
+      return new Response(plainText, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/plain',
+          'Cache-Control': 'no-store, max-age=0', // Prevent caching
+        },
+      });
+    } else {
+      return new Response('Failed to retrieve emails from webhook', {
+        status: 500,
+        headers: { 'Content-Type': 'text/plain' }
+      });
     }
+  } catch (error) {
+    console.error('Error fetching emails:', error);
+    return new Response('Internal Server Error', {
+      status: 500,
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
-
-  // Update global memory store
-  if (!globalThis.__EMAIL_LOGS__) {
-    globalThis.__EMAIL_LOGS__ = emailsSet
-  } else {
-    emailsSet.forEach(e => globalThis.__EMAIL_LOGS__!.add(e))
-  }
-
-  const emailsList = Array.from(emailsSet)
-  const textContent = emailsList.length > 0 ? emailsList.join('\n') + '\n' : 'No logged in users yet.\n'
-
-  return new Response(textContent, {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-    },
-  })
 }
