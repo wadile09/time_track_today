@@ -163,6 +163,28 @@ export default function TicTacToePage() {
   const [copyTooltip, setCopyTooltip] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ─── Restore from session storage ───
+  useEffect(() => {
+    const savedRoomId = sessionStorage.getItem("ttt-room-id");
+    const savedSymbol = sessionStorage.getItem("ttt-my-symbol") as "X" | "O" | null;
+    const savedPhase = sessionStorage.getItem("ttt-phase") as "waiting" | "playing" | null;
+    
+    if (savedRoomId && savedSymbol && savedPhase) {
+      setRoomId(savedRoomId);
+      setMySymbol(savedSymbol);
+      setPhase(savedPhase);
+    }
+  }, []);
+
+  // ─── Persist to session storage ───
+  useEffect(() => {
+    if (roomId && phase !== "lobby") {
+      sessionStorage.setItem("ttt-room-id", roomId);
+      sessionStorage.setItem("ttt-my-symbol", mySymbol);
+      sessionStorage.setItem("ttt-phase", phase);
+    }
+  }, [roomId, mySymbol, phase]);
+
   // ─── Polling for game state ───
   const pollState = useCallback(
     async (rid: string) => {
@@ -174,6 +196,16 @@ export default function TicTacToePage() {
           if (data.players.X && data.players.O) {
             setPhase("playing");
           }
+        } else if (data.error === "Room not found") {
+          // If room was cleared from memory (e.g., serverless function cold start), end game
+          setPhase("lobby");
+          setRoomId("");
+          setJoinCode("");
+          setGame(null);
+          setError("Room session expired. Please create a new room.");
+          sessionStorage.removeItem("ttt-room-id");
+          sessionStorage.removeItem("ttt-my-symbol");
+          sessionStorage.removeItem("ttt-phase");
         }
       } catch {
         // Silent poll failure
@@ -278,6 +310,9 @@ export default function TicTacToePage() {
     setJoinCode("");
     setGame(null);
     setError("");
+    sessionStorage.removeItem("ttt-room-id");
+    sessionStorage.removeItem("ttt-my-symbol");
+    sessionStorage.removeItem("ttt-phase");
   };
 
   // ─── Derived state ───
