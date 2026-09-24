@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Loader2, LogOut, Clock, ChevronDown, Search, Check } from 'lucide-react'
+import { Loader2, LogOut, Clock, ChevronDown, Search, Check, Gamepad2 } from 'lucide-react'
 import { login, getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail, getEmployeeList, Employee } from '@/lib/api'
 import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculation'
 import { useToast } from '@/hooks/use-toast'
@@ -740,6 +740,15 @@ export function TimeDetails() {
               />
             </div>
             {mounted && <LiveDigitalClock />}
+
+            <button
+              onClick={() => router.push('/tictactoe')}
+              className="group relative p-2 rounded-lg border border-purple-500/20 bg-purple-500/10 hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-300"
+              title="Play Tic Tac Toe"
+            >
+              <Gamepad2 className="h-4 w-4 text-purple-400/70 group-hover:text-purple-300 transition-colors" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            </button>
 
             <button
               onClick={handleLogout}
