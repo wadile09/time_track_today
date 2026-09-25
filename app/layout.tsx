@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased bg-black text-white">
+      <body className="font-sans antialiased bg-black text-white" suppressHydrationWarning>
 
         {/* Global particle background */}
         <ParticleWrapper />
