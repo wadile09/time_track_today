@@ -7,6 +7,7 @@ import { Loader2, LogOut, Clock, ChevronDown, Search, Check, Gamepad2 } from 'lu
 import { login, getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail, getEmployeeList, Employee } from '@/lib/api'
 import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculation'
 import { useToast } from '@/hooks/use-toast'
+import { ChatBox } from '@/components/chat-box'
 
 /* ─── Mini Analog Clock (header) ─── */
 function MiniAnalogClock({ size = 44 }: { size?: number }) {
@@ -948,6 +949,7 @@ export function TimeDetails() {
           </div>
         </div>
       </main>
+      <ChatBox employees={employees} currentUser={session} />
     </div>
   )
 }
