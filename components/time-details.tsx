@@ -265,8 +265,8 @@ function SearchableEmployeeDropdown({
                     setSearch('')
                   }}
                   className={`w-full text-left flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-all duration-200 ${value === emp.employeeCode
-                      ? 'bg-white/10 text-white font-medium shadow-sm'
-                      : 'text-white/60 hover:bg-white/[0.04] hover:text-white/90 font-light'
+                    ? 'bg-white/10 text-white font-medium shadow-sm'
+                    : 'text-white/60 hover:bg-white/[0.04] hover:text-white/90 font-light'
                     }`}
                 >
                   <span className="truncate pr-2">{emp.firstName} {emp.lastName}</span>
@@ -953,6 +953,3 @@ export function TimeDetails() {
     </div>
   )
 }
-
-
-
