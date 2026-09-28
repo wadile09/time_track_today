@@ -949,7 +949,7 @@ export function TimeDetails() {
           </div>
         </div>
       </main>
-      {/* <ChatBox employees={employees} currentUser={session} /> */}
+      <ChatBox employees={employees} currentUser={session} />
     </div>
   )
 }
