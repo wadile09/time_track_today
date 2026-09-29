@@ -28,7 +28,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-black text-white" suppressHydrationWarning>
 
         {/* Global particle background */}
-        <ParticleWrapper />
+        {/* <ParticleWrapper /> */}
 
         {/* Google AdSense Script */}
         <Script

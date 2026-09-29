@@ -327,18 +327,18 @@ export function LoginForm() {
             {/* Card Header */}
             <div className="text-center mb-10">
               <h1 className="text-2xl font-extralight tracking-[0.25em] text-white/95 uppercase mb-1.5 leading-none">
-                Chronos
+                Devstree
               </h1>
               <p className="text-[10px] tracking-[0.4em] text-white/20 uppercase font-light">
-                Enterprise Node 0x99
+                IT Services Private Limited
               </p>
             </div>
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-light ml-2">
-                  Identity
+                <Label htmlFor="username" className="text-[15px] uppercase tracking-[0.3em] text-white/30 ml-2">
+                  UserName
                 </Label>
                 <div className="relative group/input">
                   <Input
@@ -358,8 +358,8 @@ export function LoginForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-light ml-2">
-                  Access Key
+                <Label htmlFor="password" className="text-[15px] uppercase tracking-[0.3em] text-white/30 font-strong ml-2">
+                  Password
                 </Label>
                 <div className="relative group/input">
                   <Input
@@ -401,11 +401,11 @@ export function LoginForm() {
             </form>
           </div>
         </div>
-<div className="w-full max-w-sm mt-6">
-  <Adsense />
-</div>
+        {/* <div className="w-full max-w-sm mt-6">
+          <Adsense />
+        </div> */}
         {/* Footer */}
-        <div className="mt-8 flex flex-col items-center gap-3 opacity-20 hover:opacity-50 transition-all duration-1000 cursor-default group">
+        {/* <div className="mt-8 flex flex-col items-center gap-3 opacity-20 hover:opacity-50 transition-all duration-1000 cursor-default group">
           <div className="flex items-center gap-4">
             <div className="w-12 h-px bg-gradient-to-r from-transparent to-white/40 group-hover:w-16 transition-all duration-1000" />
             <p className="text-[8px] tracking-[0.5em] uppercase font-thin">
@@ -413,7 +413,7 @@ export function LoginForm() {
             </p>
             <div className="w-12 h-px bg-gradient-to-l from-transparent to-white/40 group-hover:w-16 transition-all duration-1000" />
           </div>
-        </div>
+        </div> */}
       </div>
 
       <style dangerouslySetInnerHTML={{
