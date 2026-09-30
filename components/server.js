@@ -123,6 +123,26 @@ app.prepare().then(() => {
       }
     });
 
+    // Delete message
+    socket.on('delete-message', (data) => {
+      const { messageId } = data;
+      const msg = chatMessages.find(m => m.id === messageId);
+      if (msg) {
+        // Only allow the sender to delete their own message
+        const user = onlineUsers.get(socket.id);
+        if (user && msg.senderId === user.employeeCode) {
+          chatMessages = chatMessages.filter(m => m.id !== messageId);
+          // Broadcast the deletion
+          if (msg.receiverId === 'group1' || customGroups.has(msg.receiverId)) {
+            io.to(msg.receiverId).emit('message-deleted', { messageId });
+          } else {
+            io.to(msg.senderId).emit('message-deleted', { messageId });
+            io.to(msg.receiverId).emit('message-deleted', { messageId });
+          }
+        }
+      }
+    });
+
     // Typing indicator
     socket.on('typing', (data) => {
       const { senderId, receiverId, senderName } = data;

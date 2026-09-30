@@ -331,8 +331,84 @@ export function TimeDetails() {
     }
   }
 
+  // ───── Proactive Session Keep-Alive ─────
+  // Refreshes the token every 14 minutes so it never expires during the workday.
+  // Also refreshes immediately when the user returns to the tab after it was hidden.
   useEffect(() => {
-    const initializeData = async () => {
+    const TOKEN_REFRESH_INTERVAL = 14 * 60 * 1000 // 14 minutes
+
+    const refreshToken = async () => {
+      const credsStr = localStorage.getItem('authCredentials')
+      if (!credsStr) return // not logged in
+      try {
+        const fresh = await silentReLogin()
+        if (fresh) {
+          setSession(fresh)
+        }
+      } catch {
+        // Silently ignore — the reactive 401 handler will catch it if needed
+      }
+    }
+
+    // Periodic refresh every 14 minutes
+    const intervalId = setInterval(refreshToken, TOKEN_REFRESH_INTERVAL)
+
+    // Refresh when user returns to the tab (after sleep, tab switch, etc.)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Check if enough time has passed since we might have missed intervals
+        refreshToken()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  // ───── Effect 1: Load employee list ONCE (with localStorage cache) ─────
+  useEffect(() => {
+    if (employeesFetched.current) return
+
+    // Instantly load cached employees from localStorage
+    try {
+      const cached = localStorage.getItem('cachedEmployees')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setEmployees(parsed)
+          employeesFetched.current = true
+        }
+      }
+    } catch { /* ignore parse errors */ }
+
+    // Then refresh in background (don't block anything)
+    const refreshEmployees = async () => {
+      const sessionStr = localStorage.getItem('authSession')
+      if (!sessionStr) return
+      try {
+        const auth = JSON.parse(sessionStr) as AuthSession
+        const empRes = await getEmployeeList(auth.token)
+        if (empRes.isSuccess && empRes.data) {
+          const list = Array.isArray(empRes.data)
+            ? empRes.data
+            : (empRes.data.directoryList || empRes.data.employees || empRes.data.employeeList || Object.values(empRes.data).find(Array.isArray) || [])
+          if (Array.isArray(list) && list.length > 0) {
+            setEmployees(list)
+            employeesFetched.current = true
+            localStorage.setItem('cachedEmployees', JSON.stringify(list))
+          }
+        }
+      } catch { /* silently ignore */ }
+    }
+    refreshEmployees()
+  }, [])
+
+  // ───── Effect 2: Fetch clock details + holidays (FAST critical path) ─────
+  useEffect(() => {
+    const fetchCriticalData = async () => {
       let authSession: AuthSession | null = null
 
       // 1. Try to read stored session
@@ -347,32 +423,23 @@ export function TimeDetails() {
         if (!authSession) { router.push('/'); return }
       }
 
+      setSession(authSession)
+
+      const employeeToFetch = selectedEmployeeCode || authSession.employeeCode
+
       try {
-        setSession(authSession)
+        // Fire both fast calls in parallel (~200-300ms each)
+        const [clockRes, eventsRes] = await Promise.all([
+          getClockInDetails(authSession.token, employeeToFetch, selectedDate),
+          getUpcomingEvents(authSession.token).catch(() => null),
+        ])
 
-        if (!employeesFetched.current) {
-          try {
-            const empRes = await getEmployeeList(authSession.token)
-            if (empRes.isSuccess && empRes.data) {
-              const list = Array.isArray(empRes.data)
-                ? empRes.data
-                : (empRes.data.directoryList || empRes.data.employees || empRes.data.employeeList || Object.values(empRes.data).find(Array.isArray) || [])
-              setEmployees(list)
-              employeesFetched.current = true
-            }
-          } catch {
-            // Silently ignore if employee list fails
-          }
-        }
-
-        const employeeToFetch = selectedEmployeeCode || authSession.employeeCode
-        let response = await getClockInDetails(authSession.token, employeeToFetch, selectedDate)
-
-        // 3. If the stored token has expired, silently refresh it once
-        if (!response.isSuccess) {
-          const msg = (response.message || '').toLowerCase()
+        // Handle token expiry — retry once with a fresh token
+        let clockResponse = clockRes
+        if (!clockResponse.isSuccess) {
+          const msg = (clockResponse.message || '').toLowerCase()
           const isExpired =
-            response.statusCode === 401 ||
+            clockResponse.statusCode === 401 ||
             msg.includes('unauthorized') ||
             msg.includes('token') ||
             msg.includes('expired') ||
@@ -384,9 +451,8 @@ export function TimeDetails() {
               authSession = fresh
               setSession(fresh)
               const newEmployeeToFetch = selectedEmployeeCode || fresh.employeeCode
-              response = await getClockInDetails(fresh.token, newEmployeeToFetch, selectedDate)
+              clockResponse = await getClockInDetails(fresh.token, newEmployeeToFetch, selectedDate)
             } else {
-              // Credentials are also invalid — must log in manually
               localStorage.removeItem('authSession')
               localStorage.removeItem('authCredentials')
               toast({ title: 'Session Expired', description: 'Please log in again.', variant: 'destructive' })
@@ -396,48 +462,42 @@ export function TimeDetails() {
           }
         }
 
-        if (!response.isSuccess) {
-          toast({ title: 'Error', description: response.message, variant: 'destructive' })
+        if (!clockResponse.isSuccess) {
+          toast({ title: 'Error', description: clockResponse.message, variant: 'destructive' })
           return
         }
 
+        // Process clock data (critical path — renders the page)
         setData({
-          clockInDetails: response.data.clockInDetails,
-          shiftName: response.data.shiftName,
-          attendanceDate: response.data.attendanceDate,
-          policyName: response.data.policyName,
+          clockInDetails: clockResponse.data.clockInDetails,
+          shiftName: clockResponse.data.shiftName,
+          attendanceDate: clockResponse.data.attendanceDate,
+          policyName: clockResponse.data.policyName,
         })
 
-        const result = calculateTimeFromSessions(response.data.clockInDetails)
+        const result = calculateTimeFromSessions(clockResponse.data.clockInDetails)
         setCalculation(result)
         setLiveWorkMinutes(result.totalWorkMinutes)
         setLiveBreakMinutes(result.totalBreakMinutes)
 
-        // Fetch upcoming events (holidays) – non-blocking
-        try {
-          const eventsRes = await getUpcomingEvents(authSession.token)
-          if (eventsRes.isSuccess && eventsRes.data?.holidayDetails) {
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            const filtered = eventsRes.data.holidayDetails.filter((h) => {
-              // Parse the day string e.g. "Wed, 04 Mar 2026"
-              const holidayDate = new Date(h.day)
-              holidayDate.setHours(0, 0, 0, 0)
-              const diffDays = Math.round((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-              // Show only 0, 1, or 2 days ahead (not past holidays)
-              return diffDays >= 0 && diffDays <= 2
-            })
-            setUpcomingHolidays(filtered)
+        // Process upcoming events (already resolved)
+        if (eventsRes && eventsRes.isSuccess && eventsRes.data?.holidayDetails) {
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const filtered = eventsRes.data.holidayDetails.filter((h) => {
+            const holidayDate = new Date(h.day)
+            holidayDate.setHours(0, 0, 0, 0)
+            const diffDays = Math.round((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            return diffDays >= 0 && diffDays <= 2
+          })
+          setUpcomingHolidays(filtered)
 
-            const allHolidayStrings = eventsRes.data.holidayDetails.map((h: HolidayDetail) => {
-              const d = new Date(h.day)
-              d.setHours(0, 0, 0, 0)
-              return d.toLocaleDateString('en-CA')
-            })
-            setHolidayDateStrings(allHolidayStrings)
-          }
-        } catch {
-          // Silently ignore holiday fetch errors
+          const allHolidayStrings = eventsRes.data.holidayDetails.map((h: HolidayDetail) => {
+            const d = new Date(h.day)
+            d.setHours(0, 0, 0, 0)
+            return d.toLocaleDateString('en-CA')
+          })
+          setHolidayDateStrings(allHolidayStrings)
         }
       } catch (error) {
         toast({
@@ -449,12 +509,13 @@ export function TimeDetails() {
         setLoading(false)
       }
     }
-    initializeData()
+    fetchCriticalData()
   }, [router, toast, selectedDate, selectedEmployeeCode])
 
   const handleLogout = () => {
     localStorage.removeItem('authSession')
     localStorage.removeItem('authCredentials')
+    localStorage.removeItem('cachedEmployees')
     router.push('/')
   }
 
@@ -705,7 +766,7 @@ export function TimeDetails() {
           <div className="flex items-center gap-3">
             {mounted && <MiniAnalogClock size={120} />}
             <div>
-              <p className="text-[10px] uppercase tracking-[0.15em] text-white/25">Welcome</p>
+              <p className="text-[15px] uppercase tracking-[0.15em] text-white/25">Welcome</p>
               <p style={{ fontWeight: 'bold' }} className="text-lg font-bold text-white/80 font-light whitespace-nowrap">
                 {session.firstName && session.lastName
                   ? `${session.firstName} ${session.lastName}`

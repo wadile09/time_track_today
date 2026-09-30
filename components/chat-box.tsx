@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageCircle, X, Send, Check, CheckCheck, Users, User, ArrowLeft, Plus, Search, Smile, Edit2, CheckSquare, Square, Image as ImageIcon } from 'lucide-react'
+import { MessageCircle, X, Send, Check, CheckCheck, Users, User, ArrowLeft, Plus, Search, Smile, Edit2, Trash2, CheckSquare, Square, Image as ImageIcon } from 'lucide-react'
 import { Employee, AuthSession } from '@/lib/api'
 import { io, Socket } from 'socket.io-client'
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
@@ -71,6 +71,7 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showGifPicker, setShowGifPicker] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ messageId: string; x: number; y: number } | null>(null)
 
   // Create Group State
   const [newGroupName, setNewGroupName] = useState('')
@@ -202,6 +203,14 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
       })))
     })
 
+    // Message deleted
+    s.on('message-deleted', (data: { messageId: string }) => {
+      setChats(prev => prev.map(c => ({
+        ...c,
+        messages: c.messages.filter(m => m.id !== data.messageId)
+      })))
+    })
+
     // Online users
     s.on('online-users', (list: string[]) => {
       setOnlineUserIds(list)
@@ -235,6 +244,7 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
       s.off('custom-groups')
       s.off('new-message')
       s.off('message-edited')
+      s.off('message-deleted')
       s.off('online-users')
       s.off('user-typing')
       s.off('user-stop-typing')
@@ -309,6 +319,28 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
     setShowEmojiPicker(false)
     setShowGifPicker(false)
   }
+
+  // ───── Delete Message ─────
+  const handleDeleteMessage = (messageId: string) => {
+    if (!currentUser) return
+    const s = getSocket()
+    s.emit('delete-message', { messageId })
+    setContextMenu(null)
+  }
+
+  // ───── Context Menu ─────
+  const handleMessageContextMenu = (e: React.MouseEvent, msg: Message) => {
+    if (msg.senderId !== currentUser?.employeeCode) return
+    e.preventDefault()
+    // Get the chat panel bounding rect to position within it
+    const panel = (e.currentTarget as HTMLElement).closest('.chat-panel-container')
+    const panelRect = panel?.getBoundingClientRect()
+    const x = panelRect ? e.clientX - panelRect.left : e.clientX
+    const y = panelRect ? e.clientY - panelRect.top : e.clientY
+    setContextMenu({ messageId: msg.id, x, y })
+  }
+
+  const closeContextMenu = () => setContextMenu(null)
 
   // ───── Typing Indicator ─────
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -402,7 +434,7 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
 
   // ───── Chat Panel ─────
   return (
-    <div className="fixed bottom-6 right-6 w-80 sm:w-96 h-[550px] max-h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden font-sans">
+    <div className="chat-panel-container fixed bottom-6 right-6 w-80 sm:w-96 h-[550px] max-h-[85vh] bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden font-sans">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/[0.02]">
         <div className="flex items-center gap-3">
@@ -607,7 +639,11 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
             {activeChat.messages.map(msg => {
               const isMe = msg.senderId === currentUser?.employeeCode
               return (
-                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg`}>
+                <div
+                  key={msg.id}
+                  className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group/msg`}
+                  onContextMenu={(e) => handleMessageContextMenu(e, msg)}
+                >
                   {activeChat.isGroup && !isMe && (
                     <p className="text-[10px] text-purple-400/70 mb-1 ml-1 font-medium">
                       {msg.senderName || employees.find(e => e.employeeCode === msg.senderId)?.firstName || msg.senderId}
@@ -622,14 +658,25 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
                       )}
                       {msg.isEdited && <span className="text-[9px] opacity-60 ml-2 italic">(edited)</span>}
                     </div>
-                    {isMe && !msg.gifUrl && (
-                      <button
-                        onClick={() => { setEditingMessageId(msg.id); setInputText(msg.text); }}
-                        className="opacity-0 group-hover/msg:opacity-100 p-1.5 hover:bg-white/10 rounded-full text-white/40 hover:text-white transition-all"
-                        title="Edit Message"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
+                    {isMe && (
+                      <div className="opacity-0 group-hover/msg:opacity-100 flex items-center gap-0.5 transition-all">
+                        {!msg.gifUrl && (
+                          <button
+                            onClick={() => { setEditingMessageId(msg.id); setInputText(msg.text); setContextMenu(null); }}
+                            className="p-1.5 hover:bg-white/10 rounded-full text-white/40 hover:text-white transition-colors"
+                            title="Edit Message"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          className="p-1.5 hover:bg-red-500/20 rounded-full text-white/40 hover:text-red-400 transition-colors"
+                          title="Delete Message"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-1 mt-1">
@@ -662,6 +709,46 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
           </div>
         )}
       </div>
+
+      {/* ─── Context Menu ─── */}
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={closeContextMenu} />
+          <div
+            className="absolute z-[70] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[140px]"
+            style={{ left: Math.min(contextMenu.x, 220), top: Math.min(contextMenu.y, 420) }}
+          >
+            {(() => {
+              const msg = activeChat?.messages.find(m => m.id === contextMenu.messageId)
+              if (!msg) return null
+              return (
+                <>
+                  {!msg.gifUrl && (
+                    <button
+                      onClick={() => {
+                        setEditingMessageId(msg.id)
+                        setInputText(msg.text)
+                        setContextMenu(null)
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-white/80 hover:bg-white/[0.06] transition-colors text-left"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-purple-400" />
+                      Edit
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDeleteMessage(msg.id)}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                </>
+              )
+            })()}
+          </div>
+        </>
+      )}
 
       {/* Popovers */}
       {showEmojiPicker && (
