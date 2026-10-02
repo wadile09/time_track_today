@@ -104,6 +104,7 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
   const [connected, setConnected] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
+  const [showNotificationHelp, setShowNotificationHelp] = useState(false)
 
   const [chats, setChats] = useState<ChatSession[]>([
     {
@@ -688,9 +689,9 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
               )}
               {notificationPermission === 'denied' && (
                 <button
-                  className="p-2 rounded-lg text-red-400/50 cursor-not-allowed"
-                  title="Notifications blocked — enable in browser settings"
-                  disabled
+                  onClick={() => setShowNotificationHelp(true)}
+                  className="p-2 hover:bg-red-500/10 rounded-lg text-red-400/70 hover:text-red-400 transition-colors"
+                  title="Notifications blocked — click for help"
                 >
                   <BellOff className="w-4 h-4" />
                 </button>
@@ -708,6 +709,94 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
           </button>
         </div>
       </div>
+
+      {/* ─── Notification Help Modal ─── */}
+      {showNotificationHelp && (
+        <div className="absolute inset-0 z-[80] flex flex-col bg-[#0a0a0a]/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <h3 className="font-semibold text-white/90 text-sm flex items-center gap-2">
+              <BellOff className="w-4 h-4 text-red-400" />
+              Enable Notifications
+            </h3>
+            <button
+              onClick={() => setShowNotificationHelp(false)}
+              className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+              <p className="text-xs text-red-300">
+                Notifications are currently <strong>blocked</strong>. You need to enable them from your browser settings.
+              </p>
+            </div>
+
+            {/* Chrome */}
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-2">
+              <p className="text-xs font-semibold text-white/80 flex items-center gap-2">
+                🌐 Google Chrome
+              </p>
+              <ol className="text-[11px] text-white/50 space-y-1.5 list-decimal list-inside">
+                <li>Click the <strong className="text-white/70">🔒 lock icon</strong> in the address bar</li>
+                <li>Find <strong className="text-white/70">Notifications</strong></li>
+                <li>Change from <strong className="text-red-400">Block</strong> to <strong className="text-emerald-400">Allow</strong></li>
+                <li>Reload the page</li>
+              </ol>
+            </div>
+
+            {/* Edge */}
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-2">
+              <p className="text-xs font-semibold text-white/80 flex items-center gap-2">
+                🔵 Microsoft Edge
+              </p>
+              <ol className="text-[11px] text-white/50 space-y-1.5 list-decimal list-inside">
+                <li>Click the <strong className="text-white/70">🔒 lock icon</strong> in the address bar</li>
+                <li>Click <strong className="text-white/70">Permissions for this site</strong></li>
+                <li>Set Notifications to <strong className="text-emerald-400">Allow</strong></li>
+                <li>Reload the page</li>
+              </ol>
+            </div>
+
+            {/* Firefox */}
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-2">
+              <p className="text-xs font-semibold text-white/80 flex items-center gap-2">
+                🦊 Firefox
+              </p>
+              <ol className="text-[11px] text-white/50 space-y-1.5 list-decimal list-inside">
+                <li>Click the <strong className="text-white/70">🔒 lock icon</strong> in the address bar</li>
+                <li>Click <strong className="text-white/70">Connection secure</strong> → <strong className="text-white/70">More Information</strong></li>
+                <li>Go to <strong className="text-white/70">Permissions</strong> tab</li>
+                <li>Find Notifications → Uncheck &quot;Block&quot; and set to <strong className="text-emerald-400">Allow</strong></li>
+                <li>Reload the page</li>
+              </ol>
+            </div>
+
+            {/* Safari */}
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 space-y-2">
+              <p className="text-xs font-semibold text-white/80 flex items-center gap-2">
+                🧭 Safari (macOS)
+              </p>
+              <ol className="text-[11px] text-white/50 space-y-1.5 list-decimal list-inside">
+                <li>Open <strong className="text-white/70">Safari → Settings → Websites</strong></li>
+                <li>Click <strong className="text-white/70">Notifications</strong> in the sidebar</li>
+                <li>Find this website and set to <strong className="text-emerald-400">Allow</strong></li>
+                <li>Reload the page</li>
+              </ol>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowNotificationHelp(false)
+                window.location.reload()
+              }}
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-lg transition-colors text-sm mt-2"
+            >
+              I&apos;ve enabled it — Reload Page
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto bg-black/40 relative flex flex-col">
