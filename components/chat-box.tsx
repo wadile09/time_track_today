@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageCircle, X, Send, Check, CheckCheck, Users, User, ArrowLeft, Plus, Search, Smile, Edit2, Trash2, CheckSquare, Square, Image as ImageIcon } from 'lucide-react'
+import { MessageCircle, X, Send, Check, CheckCheck, Users, User, ArrowLeft, Plus, Search, Smile, Edit2, Trash2, CheckSquare, Square, Image as ImageIcon, Bell, BellOff } from 'lucide-react'
 import { Employee, AuthSession } from '@/lib/api'
 import { io, Socket } from 'socket.io-client'
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
@@ -50,11 +50,60 @@ const DEMO_GIFS = [
   'https://media.giphy.com/media/26n6WywJyh39n1pBu/giphy.gif'
 ]
 
+// ───── Notification Sound Helper ─────
+function playNotificationSound() {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const oscillator = audioCtx.createOscillator()
+    const gainNode = audioCtx.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioCtx.destination)
+
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime) // A5 note
+    oscillator.frequency.setValueAtTime(1046.5, audioCtx.currentTime + 0.1) // C6 note
+    oscillator.type = 'sine'
+
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4)
+
+    oscillator.start(audioCtx.currentTime)
+    oscillator.stop(audioCtx.currentTime + 0.4)
+  } catch (_) {
+    // Silently fail if AudioContext is not available
+  }
+}
+
+// ───── Browser Notification Helper ─────
+function showBrowserNotification(title: string, body: string, onClick?: () => void) {
+  if (typeof window === 'undefined') return
+  if (!('Notification' in window)) return
+  if (Notification.permission !== 'granted') return
+
+  const notification = new Notification(title, {
+    body,
+    icon: '/favicon.jpg',
+    badge: '/favicon.jpg',
+    tag: 'chat-message-' + Date.now(),
+    silent: true, // We play our own sound
+  })
+
+  notification.onclick = () => {
+    window.focus()
+    onClick?.()
+    notification.close()
+  }
+
+  // Auto-close after 5 seconds
+  setTimeout(() => notification.close(), 5000)
+}
+
 export function ChatBox({ employees = [], currentUser }: { employees?: Employee[], currentUser?: AuthSession | null }) {
   const [isOpen, setIsOpen] = useState(false)
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([])
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
 
   const [chats, setChats] = useState<ChatSession[]>([
     {
@@ -79,6 +128,39 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Refs to track current state in socket callbacks (avoids stale closures)
+  const isOpenRef = useRef(isOpen)
+  const activeChatIdRef = useRef(activeChatId)
+  useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
+  useEffect(() => { activeChatIdRef.current = activeChatId }, [activeChatId])
+
+  // ───── Notification Permission ─────
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotificationPermission(Notification.permission)
+    }
+  }, [])
+
+  const requestNotificationPermission = useCallback(async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    try {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+    } catch (_) {
+      // Silently fail
+    }
+  }, [])
+
+  // ───── Update Document Title with Unread Count ─────
+  const originalTitleRef = useRef('')
+  useEffect(() => {
+    if (!originalTitleRef.current) {
+      originalTitleRef.current = document.title
+    }
+  }, [])
+
+  // We need totalUnread for title update, computed below after chats is defined
 
   const activeChat = chats.find(c => c.id === activeChatId)
 
@@ -172,10 +254,11 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
 
       setChats(prev => {
         let found = false
+        let isDuplicate = false
         const updated = prev.map(c => {
           if (c.id === chatId) {
             found = true
-            if (c.messages.some(m => m.id === msg.id)) return c
+            if (c.messages.some(m => m.id === msg.id)) { isDuplicate = true; return c }
             return { ...c, messages: [...c.messages, msg], isTyping: false }
           }
           return c
@@ -191,6 +274,36 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
             online: true,
           })
         }
+
+        // ───── Trigger Notification for incoming messages ─────
+        if (!isDuplicate && msg.senderId !== currentUser.employeeCode) {
+          const isChatPanelOpen = isOpenRef.current
+          const isViewingThisChat = activeChatIdRef.current === chatId
+          const isTabFocused = document.hasFocus()
+
+          // Show notification if: chat panel is closed, OR viewing a different chat, OR tab is not focused
+          if (!isChatPanelOpen || !isViewingThisChat || !isTabFocused) {
+            // Play notification sound
+            playNotificationSound()
+
+            // Find the chat name for the notification title
+            const chatForNotif = updated.find(c => c.id === chatId)
+            const chatName = chatForNotif?.name || msg.senderName || 'New Message'
+            const notifBody = msg.gifUrl ? '📷 Sent a GIF' : msg.text
+
+            showBrowserNotification(
+              isGroup ? `${msg.senderName || 'Someone'} in ${chatName}` : chatName,
+              notifBody,
+              () => {
+                // When notification is clicked, open the chat
+                setIsOpen(true)
+                setActiveChatId(chatId)
+                setView('chat')
+              }
+            )
+          }
+        }
+
         return updated
       })
     })
@@ -415,20 +528,45 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
     return acc + chat.messages.filter(m => m.senderId !== currentUser?.employeeCode && m.status !== 'read').length
   }, 0)
 
+  // ───── Update Document Title with Unread Count ─────
+  useEffect(() => {
+    if (totalUnread > 0) {
+      document.title = `(${totalUnread}) ${originalTitleRef.current || 'Time Tracking System'}`
+    } else {
+      document.title = originalTitleRef.current || 'Time Tracking System'
+    }
+  }, [totalUnread])
+
   // ───── Floating Button ─────
   if (!isOpen) {
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-2xl hover:shadow-purple-500/25 hover:-translate-y-1 transition-all duration-300 z-50 flex items-center justify-center"
-      >
-        <MessageCircle className="w-6 h-6" />
-        {totalUnread > 0 && (
-          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 border-2 border-black rounded-full text-[10px] font-bold flex items-center justify-center">
-            {totalUnread > 99 ? '99+' : totalUnread}
-          </span>
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {/* Notification Permission Prompt - shown once when permission is 'default' */}
+        {notificationPermission === 'default' && (
+          <button
+            onClick={requestNotificationPermission}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-medium rounded-full shadow-lg shadow-purple-500/20 animate-pulse hover:animate-none transition-all duration-300"
+          >
+            <Bell className="w-3.5 h-3.5" />
+            Enable Chat Notifications
+          </button>
         )}
-      </button>
+        <button
+          onClick={() => setIsOpen(true)}
+          className="p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white shadow-2xl hover:shadow-purple-500/25 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center relative"
+        >
+          <MessageCircle className="w-6 h-6" />
+          {totalUnread > 0 && (
+            <>
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 border-2 border-black rounded-full text-[10px] font-bold flex items-center justify-center">
+                {totalUnread > 99 ? '99+' : totalUnread}
+              </span>
+              {/* Pulse ring animation for unread messages */}
+              <span className="absolute inset-0 rounded-full bg-purple-500 animate-ping opacity-20"></span>
+            </>
+          )}
+        </button>
+      </div>
     )
   }
 
@@ -457,6 +595,12 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
               <div className="flex items-center gap-2 mt-0.5">
                 <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
                 <p className="text-[10px] text-white/30 uppercase tracking-widest">{connected ? 'Connected' : 'Connecting...'}</p>
+                {notificationPermission === 'granted' && (
+                  <span className="text-[10px] text-emerald-400/60" title="Notifications enabled">🔔</span>
+                )}
+                {notificationPermission === 'denied' && (
+                  <span className="text-[10px] text-red-400/60" title="Notifications blocked">🔕</span>
+                )}
               </div>
             )}
           </div>
@@ -464,6 +608,24 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
         <div className="flex items-center gap-1">
           {view === 'list' && (
             <>
+              {notificationPermission === 'default' && (
+                <button
+                  onClick={requestNotificationPermission}
+                  className="p-2 hover:bg-white/10 rounded-lg text-amber-400/80 hover:text-amber-300 transition-colors"
+                  title="Enable Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                </button>
+              )}
+              {notificationPermission === 'denied' && (
+                <button
+                  className="p-2 rounded-lg text-red-400/50 cursor-not-allowed"
+                  title="Notifications blocked — enable in browser settings"
+                  disabled
+                >
+                  <BellOff className="w-4 h-4" />
+                </button>
+              )}
               <button onClick={() => setView('create-group')} className="p-2 hover:bg-white/10 rounded-lg text-white/70 transition-colors" title="Create Group">
                 <Users className="w-4 h-4" />
               </button>
