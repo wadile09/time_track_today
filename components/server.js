@@ -2,6 +2,17 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
+const webpush = require('web-push');
+
+// ───── VAPID Keys for Web Push Notifications ─────
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BKfFxryu2PKuFLJn8VU2qY3mXdJALbB2jML-6Q4Qqs6PxCVTR1L8O3fO-kEfAmkSHWV29QcwjdJ7u9I52LJgZeo';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'z9S4pzwSSCjoXoQ7Rqz4UsJmULJI8z2xz1MN7abAYwo';
+
+webpush.setVapidDetails(
+  'mailto:admin@timetrack.app',
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
@@ -28,6 +39,37 @@ app.prepare().then(() => {
   let chatMessages = [];
   // Dynamic custom groups { groupId: { id, name, members: string[] } }
   const customGroups = new Map();
+  // Push subscriptions: employeeCode -> [{ subscription, ... }]
+  const pushSubscriptions = new Map();
+
+  // ───── Helper: Send Push Notification ─────
+  function sendPushToUser(employeeCode, payload) {
+    const subs = pushSubscriptions.get(employeeCode);
+    if (!subs || subs.length === 0) return;
+
+    const payloadStr = JSON.stringify(payload);
+    const toRemove = [];
+
+    subs.forEach((sub, index) => {
+      webpush.sendNotification(sub, payloadStr).catch((err) => {
+        console.log(`[push] Failed to send to ${employeeCode}:`, err.statusCode);
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          // Subscription expired or invalid — mark for removal
+          toRemove.push(index);
+        }
+      });
+    });
+
+    // Clean up expired subscriptions
+    if (toRemove.length > 0) {
+      const filtered = subs.filter((_, i) => !toRemove.includes(i));
+      if (filtered.length > 0) {
+        pushSubscriptions.set(employeeCode, filtered);
+      } else {
+        pushSubscriptions.delete(employeeCode);
+      }
+    }
+  }
 
   io.on('connection', (socket) => {
     console.log(`[socket] Connected: ${socket.id}`);
@@ -60,6 +102,34 @@ app.prepare().then(() => {
       // Broadcast updated online list
       const onlineList = Array.from(onlineUsers.values()).map(u => u.employeeCode);
       io.emit('online-users', onlineList);
+    });
+
+    // ───── Push Subscription Management ─────
+    socket.on('subscribe-push', (data) => {
+      const { employeeCode, subscription } = data;
+      if (!employeeCode || !subscription) return;
+
+      let subs = pushSubscriptions.get(employeeCode) || [];
+      // Avoid duplicates by checking endpoint
+      const exists = subs.some(s => s.endpoint === subscription.endpoint);
+      if (!exists) {
+        subs.push(subscription);
+        pushSubscriptions.set(employeeCode, subs);
+        console.log(`[push] ${employeeCode} subscribed (total: ${subs.length})`);
+      }
+    });
+
+    socket.on('unsubscribe-push', (data) => {
+      const { employeeCode, endpoint } = data;
+      if (!employeeCode) return;
+      const subs = pushSubscriptions.get(employeeCode) || [];
+      const filtered = subs.filter(s => s.endpoint !== endpoint);
+      if (filtered.length > 0) {
+        pushSubscriptions.set(employeeCode, filtered);
+      } else {
+        pushSubscriptions.delete(employeeCode);
+      }
+      console.log(`[push] ${employeeCode} unsubscribed`);
     });
 
     // Create custom group
@@ -99,10 +169,37 @@ app.prepare().then(() => {
       if (receiverId === 'group1' || customGroups.has(receiverId)) {
         // Group message — send to everyone in the group room
         io.to(receiverId).emit('new-message', msg);
+
+        // Send push notifications to group members who are NOT the sender
+        const group = customGroups.get(receiverId);
+        const members = group ? group.members : Array.from(onlineUsers.values()).map(u => u.employeeCode);
+        members.forEach(memberCode => {
+          if (memberCode !== senderId) {
+            sendPushToUser(memberCode, {
+              title: 'New Group Message',
+              body: gifUrl ? '📷 Sent a GIF' : text,
+              senderName: senderName,
+              chatId: receiverId,
+              isGroup: true,
+              groupName: group ? group.name : 'Self Chat',
+              icon: '/favicon.jpg',
+            });
+          }
+        });
       } else {
         // Personal message — send to sender's room and receiver's room
         io.to(senderId).emit('new-message', msg);
         io.to(receiverId).emit('new-message', msg);
+
+        // Send push notification to the receiver
+        sendPushToUser(receiverId, {
+          title: 'New Message',
+          body: gifUrl ? '📷 Sent a GIF' : text,
+          senderName: senderName,
+          chatId: senderId,
+          isGroup: false,
+          icon: '/favicon.jpg',
+        });
       }
     });
 

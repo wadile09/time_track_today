@@ -135,22 +135,91 @@ export function ChatBox({ employees = [], currentUser }: { employees?: Employee[
   useEffect(() => { isOpenRef.current = isOpen }, [isOpen])
   useEffect(() => { activeChatIdRef.current = activeChatId }, [activeChatId])
 
-  // ───── Notification Permission ─────
+  // ───── Service Worker & Web Push Registration ─────
+  const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null)
+
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setNotificationPermission(Notification.permission)
     }
+
+    // Register service worker on mount
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => {
+          console.log('[Chat] Service Worker registered')
+          swRegistrationRef.current = reg
+        })
+        .catch((err) => console.error('[Chat] SW registration failed:', err))
+
+      // Listen for messages from service worker (notification clicks)
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data?.type === 'NOTIFICATION_CLICK' && event.data.chatId) {
+          setIsOpen(true)
+          setActiveChatId(event.data.chatId)
+          setView('chat')
+        }
+      })
+    }
   }, [])
+
+  // Subscribe to Web Push when permission is granted and user is logged in
+  const subscribeToPush = useCallback(async () => {
+    if (!currentUser?.employeeCode) return
+    if (!swRegistrationRef.current) return
+
+    try {
+      // Fetch the VAPID public key from our API
+      const res = await fetch('/api/push/vapid-key')
+      const { publicKey } = await res.json()
+
+      // Convert VAPID key to Uint8Array
+      const urlBase64ToUint8Array = (base64String: string) => {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4)
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+        const rawData = window.atob(base64)
+        return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)))
+      }
+
+      const subscription = await swRegistrationRef.current.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      })
+
+      // Send the subscription to the server via Socket.IO
+      const s = getSocket()
+      s.emit('subscribe-push', {
+        employeeCode: currentUser.employeeCode,
+        subscription: subscription.toJSON(),
+      })
+
+      console.log('[Chat] Push subscription sent to server')
+    } catch (err) {
+      console.error('[Chat] Push subscription failed:', err)
+    }
+  }, [currentUser?.employeeCode])
+
+  // Auto-subscribe when permission is granted
+  useEffect(() => {
+    if (notificationPermission === 'granted' && currentUser?.employeeCode && connected) {
+      subscribeToPush()
+    }
+  }, [notificationPermission, currentUser?.employeeCode, connected, subscribeToPush])
 
   const requestNotificationPermission = useCallback(async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) return
     try {
       const permission = await Notification.requestPermission()
       setNotificationPermission(permission)
+      // If granted, subscribe to push immediately
+      if (permission === 'granted') {
+        // Small delay to ensure SW is ready
+        setTimeout(() => subscribeToPush(), 500)
+      }
     } catch (_) {
       // Silently fail
     }
-  }, [])
+  }, [subscribeToPush])
 
   // ───── Update Document Title with Unread Count ─────
   const originalTitleRef = useRef('')
