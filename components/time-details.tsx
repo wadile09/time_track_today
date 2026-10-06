@@ -8,6 +8,7 @@ import { login, getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail
 import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculation'
 import { useToast } from '@/hooks/use-toast'
 import { ChatBox } from '@/components/chat-box'
+import Script from 'next/script'
 
 /* ─── Mini Analog Clock (header) ─── */
 function MiniAnalogClock({ size = 44 }: { size?: number }) {
@@ -678,6 +679,12 @@ export function TimeDetails() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
+      <Script
+        async
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-dfsdsd"
+        crossOrigin="anonymous"
+      />
+
       {/* ─── Get Ready Popup (90%) ─── */}
       {showGetReadyPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.80)' }}>
