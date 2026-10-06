@@ -681,7 +681,7 @@ export function TimeDetails() {
     <div className="min-h-screen relative overflow-hidden">
       <Script
         async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-dfsdsd"
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8170196982539525"
         crossOrigin="anonymous"
       />
 
