@@ -133,104 +133,140 @@ async function discoverGeminiFlashModels(apiKey: string): Promise<string[]> {
       name?: string;
       supportedGenerationMethods?: string[];
     }>;
+    const blockedTerms = [
+      "omni", "exp", "tts", "audio", "image", "imagen", "embedding",
+      "robotics", "computer-use", "deep-research", "veo", "lyria", "aqa",
+    ];
     return models
-      .filter(
-        (m) =>
-          m.name &&
-          m.supportedGenerationMethods?.includes("generateContent") &&
-          m.name.toLowerCase().includes("gemini") &&
-          !m.name.toLowerCase().includes("embedding") &&
-          !m.name.toLowerCase().includes("imagen")
-      )
+      .filter((m) => {
+        if (!m.name || !m.supportedGenerationMethods?.includes("generateContent")) return false;
+        const lower = m.name.toLowerCase();
+        if (!lower.includes("gemini") && !lower.includes("gemma-3")) return false;
+        return !blockedTerms.some((term) => lower.includes(term));
+      })
       .map((m) => m.name!.replace(/^models\//, ""))
       .sort((a, b) => {
-        // Prefer flash models first, newest version first
-        const aFlash = a.includes("flash") ? 0 : 1;
-        const bFlash = b.includes("flash") ? 0 : 1;
-        if (aFlash !== bFlash) return aFlash - bFlash;
+        // Prefer standard gemini flash models first, then gemma-3, then others
+        const score = (name: string) => {
+          if (name.includes("flash-lite")) return 1;
+          if (name.includes("flash")) return 0;
+          if (name.includes("gemma-3-27b")) return 2;
+          if (name.includes("gemma-3")) return 3;
+          return 4;
+        };
+        const sa = score(a);
+        const sb = score(b);
+        if (sa !== sb) return sa - sb;
         return b.localeCompare(a);
       })
-      .slice(0, 5);
+      .slice(0, 8);
   } catch {
     return [];
   }
 }
 
-async function generateWithGemini(prompt: string, characterName: string): Promise<AIGenerationResult | null> {
-  const apiKey = getEnvKey("GEMINI_API_KEY") || getEnvKey("GOOGLE_API_KEY");
-  if (!apiKey) return null;
+function getGeminiKeys(): string[] {
+  const rawKeys = [
+    getEnvKey("GEMINI_API_KEY"),
+    getEnvKey("GOOGLE_API_KEY"),
+    getEnvKey("GEMINI_API_KEY_2"),
+    getEnvKey("GEMINI_API_KEY_3"),
+  ].filter((k): k is string => Boolean(k));
 
-  const models = ["gemini-3.5-flash", "gemini-3.5-pro", "gemini-3-flash-preview", "gemini-2.5-flash"];
+  const keys: string[] = [];
+  for (const raw of rawKeys) {
+    for (const part of raw.split(",")) {
+      const clean = part.trim();
+      if (clean && !keys.includes(clean)) keys.push(clean);
+    }
+  }
+  return keys;
+}
+
+async function generateWithGemini(prompt: string, characterName: string): Promise<AIGenerationResult | null> {
+  const apiKeys = getGeminiKeys();
+  if (apiKeys.length === 0) return null;
+
+  const defaultModels = [
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemma-3-27b-it",
+  ];
   const glUrl = (m: string) =>
     `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`;
 
   const attemptErrors: string[] = [];
-  let sawValidEndpointResponse = false;
 
-  const tryCall = async (buildUrl: (m: string) => string, model: string): Promise<AIGenerationResult | null> => {
-    try {
-      const res = await fetch(buildUrl(model), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        signal: AbortSignal.timeout(25000),
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 1.0,
-            responseMimeType: "application/json",
-          },
-        }),
-      });
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        const errMsg = errJson?.error?.message || `HTTP ${res.status}`;
-        if (res.status === 429 || res.status >= 500) {
-          sawValidEndpointResponse = true;
+  for (const apiKey of apiKeys) {
+    let sawValidEndpointResponse = false;
+
+    const tryCall = async (buildUrl: (m: string) => string, model: string): Promise<AIGenerationResult | null> => {
+      try {
+        const isGemma = model.toLowerCase().includes("gemma");
+        const generationConfig: Record<string, unknown> = { temperature: 1.0 };
+        if (!isGemma) {
+          generationConfig.responseMimeType = "application/json";
         }
-        attemptErrors.push(`${model} (${res.status}): ${errMsg}`);
-        console.warn(`[clues/gemini] ${model} failed (${res.status}):`, errMsg);
-        return null;
+
+        const res = await fetch(buildUrl(model), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          signal: AbortSignal.timeout(25000),
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig,
+          }),
+        });
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => null);
+          const errMsg = errJson?.error?.message || `HTTP ${res.status}`;
+          if (res.status === 429 || res.status >= 500) {
+            sawValidEndpointResponse = true;
+          }
+          attemptErrors.push(`${model} (${res.status}): ${errMsg}`);
+          console.warn(`[clues/gemini] ${model} failed (${res.status}):`, errMsg);
+          return null;
+        }
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const parsed = parseAIResponse(text, characterName);
+        if (parsed) {
+          return { ...parsed, provider: `gemini (${model})` };
+        }
+        sawValidEndpointResponse = true;
+        attemptErrors.push(`${model}: AI response was not valid 5-clue JSON`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Network error calling Gemini";
+        attemptErrors.push(`${model}: ${msg}`);
+        console.warn(`[clues/gemini] ${model} error:`, err);
       }
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      const parsed = parseAIResponse(text, characterName);
-      if (parsed) {
-        return { ...parsed, provider: `gemini (${model})` };
-      }
-      sawValidEndpointResponse = true;
-      attemptErrors.push(`${model}: AI response was not valid 5-clue JSON`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Network error calling Gemini";
-      attemptErrors.push(`${model}: ${msg}`);
-      console.warn(`[clues/gemini] ${model} error:`, err);
+      return null;
+    };
+
+    const primaryRes = await tryCall(glUrl, defaultModels[0]);
+    if (primaryRes) return primaryRes;
+
+    const discovered = await discoverGeminiFlashModels(apiKey);
+    const candidateModels = Array.from(new Set([...defaultModels.slice(1), ...discovered])).filter(
+      (m) => m !== defaultModels[0]
+    );
+
+    for (const model of candidateModels.slice(0, 6)) {
+      const res = await tryCall(glUrl, model);
+      if (res) return res;
     }
-    return null;
-  };
 
-  // Try primary model (gemini-3.5-flash) first
-  const primaryRes = await tryCall(glUrl, models[0]);
-  if (primaryRes) return primaryRes;
-
-  // Retry once briefly if rate-limited (429) or transient error, or try discovered models
-  const discovered = await discoverGeminiFlashModels(apiKey);
-  const candidateModels = Array.from(new Set([...discovered, ...models.slice(1)])).filter(
-    (m) => m !== models[0]
-  );
-
-  for (const model of candidateModels.slice(0, 4)) {
-    const res = await tryCall(glUrl, model);
-    if (res) return res;
-  }
-
-  // Only try Vertex Express endpoint if generativelanguage.googleapis.com rejected the key/route (not for 429 rate-limits)
-  if (!sawValidEndpointResponse) {
-    const vertexUrl = (m: string) =>
-      `https://aiplatform.googleapis.com/v1/publishers/google/models/${m}:generateContent`;
-    const vertexRes = await tryCall(vertexUrl, "gemini-3.5-flash");
-    if (vertexRes) return vertexRes;
+    if (!sawValidEndpointResponse) {
+      const vertexUrl = (m: string) =>
+        `https://aiplatform.googleapis.com/v1/publishers/google/models/${m}:generateContent`;
+      const vertexRes = await tryCall(vertexUrl, "gemini-3.5-flash");
+      if (vertexRes) return vertexRes;
+    }
   }
 
   const preferredError =
@@ -249,27 +285,43 @@ async function generateWithOpenAICompatible(prompt: string, characterName: strin
 
   const configs: Array<{ url: string; key: string; model: string; name: string }> = [];
   if (groqKey) {
-    configs.push({
-      url: "https://api.groq.com/openai/v1/chat/completions",
-      key: groqKey,
-      model: "llama-3.3-70b-versatile",
-      name: "groq",
-    });
+    configs.push(
+      {
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        key: groqKey,
+        model: "llama-3.3-70b-versatile",
+        name: "groq (llama-3.3-70b)",
+      },
+      {
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        key: groqKey,
+        model: "llama-3.1-8b-instant",
+        name: "groq (llama-3.1-8b)",
+      }
+    );
+  }
+  if (openRouterKey) {
+    configs.push(
+      {
+        url: "https://openrouter.ai/api/v1/chat/completions",
+        key: openRouterKey,
+        model: getEnvKey("OPENROUTER_MODEL") || "meta-llama/llama-3.3-70b-instruct:free",
+        name: "openrouter (llama-3.3-70b:free)",
+      },
+      {
+        url: "https://openrouter.ai/api/v1/chat/completions",
+        key: openRouterKey,
+        model: "google/gemma-3-27b-it:free",
+        name: "openrouter (gemma-3-27b:free)",
+      }
+    );
   }
   if (openAiKey) {
     configs.push({
       url: "https://api.openai.com/v1/chat/completions",
       key: openAiKey,
       model: "gpt-4o-mini",
-      name: "openai",
-    });
-  }
-  if (openRouterKey) {
-    configs.push({
-      url: "https://openrouter.ai/api/v1/chat/completions",
-      key: openRouterKey,
-      model: getEnvKey("OPENROUTER_MODEL") || "meta-llama/llama-3.3-70b-instruct:free",
-      name: "openrouter",
+      name: "openai (gpt-4o-mini)",
     });
   }
 
@@ -281,14 +333,19 @@ async function generateWithOpenAICompatible(prompt: string, characterName: strin
           "Content-Type": "application/json",
           Authorization: `Bearer ${cfg.key}`,
         },
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(15000),
         body: JSON.stringify({
           model: cfg.model,
           temperature: 1.0,
           messages: [{ role: "user", content: prompt }],
         }),
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        const errMsg = errJson?.error?.message || `HTTP ${res.status}`;
+        if (!lastProviderError) lastProviderError = `${cfg.name}: ${errMsg}`;
+        continue;
+      }
       const data = await res.json();
       const text = data?.choices?.[0]?.message?.content;
       const parsed = parseAIResponse(text, characterName);
@@ -355,8 +412,7 @@ async function generateWithOllama(prompt: string, characterName: string): Promis
 
 function hasAnyAIConfigured(): boolean {
   return Boolean(
-    getEnvKey("GEMINI_API_KEY") ||
-    getEnvKey("GOOGLE_API_KEY") ||
+    getGeminiKeys().length > 0 ||
     getEnvKey("GROQ_API_KEY") ||
     getEnvKey("OPENAI_API_KEY") ||
     getEnvKey("OPENROUTER_API_KEY") ||
