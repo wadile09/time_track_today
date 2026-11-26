@@ -630,7 +630,7 @@ export default function BollywoodGuessPage() {
               className="bw-input"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="e.g. Rahul, Simran, Raju..."
+              placeholder="e.g. Rahul, Sima, Raju..."
               maxLength={20}
             />
           </div>
