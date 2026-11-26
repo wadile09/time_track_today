@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Loader2, LogOut, Clock, ChevronDown, Search, Check, Gamepad2 } from 'lucide-react'
+import { Loader2, LogOut, Clock, ChevronDown, Search, Check, Gamepad2, Film } from 'lucide-react'
 import { login, getClockInDetails, getUpcomingEvents, AuthSession, HolidayDetail, getEmployeeList, Employee } from '@/lib/api'
 import { calculateTimeFromSessions, minutesToHMString } from '@/lib/timeCalculation'
 import { useToast } from '@/hooks/use-toast'
@@ -817,6 +817,18 @@ export function TimeDetails() {
             >
               <Gamepad2 className="h-4 w-4 text-purple-400/70 group-hover:text-purple-300 transition-colors" />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+            </button>
+
+            <button
+              onClick={() => router.push('/bollywood-guess')}
+              className="group relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-blue-500/20 bg-blue-500/10 hover:bg-blue-500/20 hover:border-blue-500/30 transition-all duration-300"
+              title="Play Bollywood Guess"
+            >
+              <Film className="h-4 w-4 text-blue-400/80 group-hover:text-blue-300 transition-colors" />
+              <span className="hidden sm:inline text-xs font-medium text-blue-300/80 group-hover:text-blue-200 whitespace-nowrap">
+                Bollywood Guess
+              </span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
             </button>
 
             <button
